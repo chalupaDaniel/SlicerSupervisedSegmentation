@@ -11,6 +11,14 @@ This 3D Slicer extension enables the user to quickly train a supervised classifi
  - Median filter from VTK[3]
  - Sobel operator from VTK[3]
   
+## 3D Slicer users:
+If you want to use this extension in 3D Slicer, check the [lib folder](SegmentationToolbox/lib/) and below to see supported 3D Slicer versions and operating systems combinations. After downloading the selected libraries, go to Edit->Application Settings->Modules in 3D Slicer and add the path to the module into 'Additional module paths:'
+
+Lib folder includes:
+ - Windows 10 64-bit, 3D Slicer 4.6.0
+
+## Developers:
+TODO
   
 ## References:
 \[1\] IGEL, CH., HEIDRICH-MEISNER, V., GLASSMACHERS, T., [Shark](http://image.diku.dk/shark/index.html), 2008, Journal of Machine Learning Research, 993-996, 9
