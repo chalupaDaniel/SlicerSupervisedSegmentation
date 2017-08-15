@@ -10,6 +10,7 @@
 
 class QPushButton;
 class QComboBox;
+class VolumeSelectorDialog;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 ///
@@ -38,7 +39,7 @@ signals:
 
 private slots:
 	void removeClicked();
-	void imageRangeClicked();
+	void volumesSelected(const QStringList& volumes);
 	void editClicked();
 	void comboboxChanged();
 	void previewClicked();
@@ -51,6 +52,7 @@ private:
 	QStringList imageRangePaths;
 	QPushButton* preview;
 	PreprocessingAlgorithmList algorithms;
+	VolumeSelectorDialog* volumeSelectorDialog;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

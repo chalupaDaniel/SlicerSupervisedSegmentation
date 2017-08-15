@@ -5,14 +5,17 @@
 #include <QPushButton>
 #include <QComboBox>
 #include <QFileDialog>
+#include <QListView>
 
 #include "PreprocessingAlgorithm.h"
+#include "VolumeSelectorDialog.h"
 
 #include <QDebug>
 
 SelectorSingleLine::SelectorSingleLine(int id, QWidget* parent)
 	: QWidget(parent), id(id)
 {
+	volumeSelectorDialog = new VolumeSelectorDialog(this);
 	QHBoxLayout* mainLayout = new QHBoxLayout();
 
 	imageRange = new QPushButton("Select Images");
@@ -40,7 +43,8 @@ SelectorSingleLine::SelectorSingleLine(int id, QWidget* parent)
 
 	setLayout(mainLayout);
 
-	connect(imageRange, SIGNAL(clicked()), this, SLOT(imageRangeClicked()));
+	connect(imageRange, SIGNAL(clicked()), volumeSelectorDialog, SLOT(exec()));
+	connect(volumeSelectorDialog, SIGNAL(volumesSelected(const QStringList&)), this, SLOT(volumesSelected(const QStringList&)));
 
 	connect(remove, SIGNAL(clicked()), this, SLOT(removeClicked()));
 	connect(remove, SIGNAL(clicked()), this, SLOT(deleteLater()));
@@ -106,17 +110,16 @@ QSharedPointer<PreprocessingAlgorithm> SelectorSingleLine::getSelectedAlgorithm(
 	return algorithms.algorithms.at(index);
 }
 
-void SelectorSingleLine::imageRangeClicked()
+void SelectorSingleLine::volumesSelected(const QStringList& volumes)
 {
-	//imageRangePaths = QFileDialog::getOpenFileNames(this, "Select images", "", "DICOM files (*.dicom)");
-	imageRangePaths = QFileDialog::getOpenFileNames(this, "Select images");
+	imageRangePaths = volumes;
 
 	if (imageRangePaths.count())
 		imageRange->setText(QString::number(imageRangePaths.count()) + " file"
-		+ (imageRangePaths.count() > 1 ? "s" : QString())
-		+ " selected");
+			+ (imageRangePaths.count() > 1 ? "s" : QString())
+			+ " selected");
 	else
-		imageRange->setText("Select Images");		
+		imageRange->setText("Select Images");
 }
 
 void SelectorSingleLine::editClicked()

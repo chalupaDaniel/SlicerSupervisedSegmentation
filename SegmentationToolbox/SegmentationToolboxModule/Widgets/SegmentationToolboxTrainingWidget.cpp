@@ -6,6 +6,7 @@
 #include "VolumeManager.h"
 #include "SupervisedClassifier.h"
 #include "ClassifierList.h"
+#include "VolumeSelectorDialog.h"
 
 #include "qSlicerCoreApplication.h"
 #include "qSlicerCoreIOManager.h"
@@ -61,6 +62,7 @@ SegmentationToolboxTrainingWidget
 
 	volumeManager = new VolumeManager(qSlicerCoreApplication::application()->coreIOManager(), "Training");
 	classifierList = new ClassifierList();
+	volumeSelectorDialog = new VolumeSelectorDialog(this);
 
 	for (QSharedPointer<SupervisedClassifier> classifier : classifierList->classifiers)
 		d->classifierSelection->addItem(classifier->name());
@@ -71,7 +73,9 @@ SegmentationToolboxTrainingWidget
 	connect(d->addImages, SIGNAL(clicked()), d->imageRangePreprocessingSelector, SLOT(addRow()));
 
 	connect(d->train, SIGNAL(clicked()), this, SLOT(trainClicked()));
-	connect(d->addClassified, SIGNAL(clicked()), this, SLOT(addClassifiedClicked()));
+
+	connect(d->addClassified, SIGNAL(clicked()), volumeSelectorDialog, SLOT(exec()));
+	connect(volumeSelectorDialog, SIGNAL(volumesSelected(const QStringList&)), this, SLOT(classifiedImagesSelected(const QStringList&)));
 
 	connect(d->imageRangePreprocessingSelector, SIGNAL(previewRequested(QSharedPointer<PreprocessingAlgorithm>, const QString&)),
 		this, SLOT(disableEditing()));
@@ -131,15 +135,15 @@ void SegmentationToolboxTrainingWidget::trainClicked()
 	volumeManager->startTrainingSequence(d->imageRangePreprocessingSelector->allFilenames(), d->imageRangePreprocessingSelector->algorithms(), classifiedImages);
 	
 }
-void SegmentationToolboxTrainingWidget::addClassifiedClicked()
+void SegmentationToolboxTrainingWidget::classifiedImagesSelected(const QStringList& volumes)
 {
 	Q_D(SegmentationToolboxTrainingWidget);
-	classifiedImages = QFileDialog::getOpenFileNames(this, "Select labels");
-	
+	classifiedImages = volumes;
+
 	if (classifiedImages.count())
 		d->addClassified->setText(QString::number(classifiedImages.count()) + " file"
-		+ (classifiedImages.count() > 1 ? "s" : QString())
-		+ " selected");
+			+ (classifiedImages.count() > 1 ? "s" : QString())
+			+ " selected");
 	else
 		d->addClassified->setText("Select labels");
 }

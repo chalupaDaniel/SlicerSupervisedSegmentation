@@ -12,6 +12,7 @@ class SegmentationToolboxTrainingWidgetPrivate;
 class VolumeManager;
 class ClassifierList;
 class SupervisedClassifier;
+class VolumeSelectorDialog;
 
 /// \ingroup Slicer_QtModules_SegmentationToolboxModule
 class Q_SLICER_MODULE_SEGMENTATIONTOOLBOXMODULE_WIDGETS_EXPORT SegmentationToolboxTrainingWidget
@@ -31,6 +32,7 @@ private:
 	ClassifierList* classifierList;
 	QSharedPointer<SupervisedClassifier> selectedClassifier;
 	QStringList classifiedImages;
+	VolumeSelectorDialog* volumeSelectorDialog;
 
 	Q_DECLARE_PRIVATE(SegmentationToolboxTrainingWidget);
 	Q_DISABLE_COPY(SegmentationToolboxTrainingWidget);
@@ -40,7 +42,7 @@ private slots:
 	void enableEditing();
 	void classifierSelectionChanged(const QString& classifierString);
 	void trainClicked();
-	void addClassifiedClicked();
+	void classifiedImagesSelected(const QStringList& volumes);
 	void saveRequested();
 	void classifierFinishedTraining();
 };
