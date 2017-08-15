@@ -2,6 +2,7 @@
 
 #include "PreprocessingAlgorithm.h"
 #include "SupervisedClassifier.h"
+#include "VolumeSelectorDialog.h"
 
 #include "qSlicerCoreIOManager.h"
 #include "qSlicerCoreApplication.h"
@@ -58,17 +59,6 @@ void VolumeManager::volumeClassified(vtkSmartPointer<vtkMRMLNode> result)
 		clearTemporaryVolumes();
 		qSlicerCoreApplication::application()->applicationLogic()->GetSelectionNode()->SetActiveVolumeID(result->GetID());
 		qSlicerCoreApplication::application()->applicationLogic()->PropagateVolumeSelection();
-		//qDebug() << result->GetNodeReferenceID("display");
-		//std::vector<std::string> str;
-		//result->GetNodeReferenceRoles(str);
-		//for (std::string& i : str) {
-		//	qDebug() << i.c_str();
-		//	std::vector<const char*> str2;
-		//	result->GetNodeReferenceIDs(i.c_str(), str2);
-		//	for (const char* j : str2) {
-		//		qDebug() << j;
-		//	}
-		//}
 
 		vtkSmartPointer<vtkMRMLScalarVolumeDisplayNode> display = vtkMRMLScalarVolumeDisplayNode::SafeDownCast(qSlicerCoreApplication::application()->mrmlScene()->GetNodeByID(result->GetNodeReferenceID("display")));
 		if (display.GetPointer() != nullptr) {
@@ -278,14 +268,8 @@ void VolumeManager::startClassifyingSequence(QVector<QStringList> filepaths, con
 		VolumeClassifyingJob job;
 
 		// Load volumes
-		QList<qSlicerIO::IOProperties> fileParameters;
 		for (size_t j = 0; j < filepaths.count(); j++)
 		{
-			qSlicerIO::IOProperties fileProperty;
-			fileProperty["fileName"] = filepaths.at(j).at(i);
-			fileProperty["fileType"] = "VolumeFile";
-			fileParameters.append(fileProperty);
-
 			vtkSmartPointer<vtkMRMLNode> loadedNode;
 			vtkSmartPointer<vtkMRMLNode> nodeToPreprocess = loadAndGetEmptyVolume(filepaths.at(j).at(i), std::string("ST " + volumeManagerId + " Set " + std::to_string(i) + " Image " + std::to_string(j)),
 				std::string("ST " + volumeManagerId + " Set " + std::to_string(i) + " Image " + std::to_string(j) + " Preprocessed"),
@@ -378,8 +362,19 @@ vtkSmartPointer<vtkMRMLNode> VolumeManager::loadAndGetLoadedVolume(const QString
 	fileParameters["fileName"] = filename;
 
 	// This loads the node to scene, unexpectedly
-	loadedVolume = slicerIoManager->loadNodesAndGetFirst("VolumeFile", fileParameters);
-	loadedVolume->SetName(loadedNodeName.c_str());
+
+	bool dummy = false;
+	if (VolumeSelectorDialog::isVolumeExternal(filename, dummy)) {
+		loadedVolume = slicerIoManager->loadNodesAndGetFirst("VolumeFile", fileParameters);
+		loadedVolume->SetName(loadedNodeName.c_str());
+	}
+	else {
+		std::string str = filename.toLocal8Bit();
+		const char* c = str.c_str();
+		loadedVolume = vtkMRMLScalarVolumeNode::
+				SafeDownCast(qSlicerCoreApplication::
+					application()->mrmlScene()->GetFirstNodeByName(c));
+	}
 
 	return loadedVolume;
 }

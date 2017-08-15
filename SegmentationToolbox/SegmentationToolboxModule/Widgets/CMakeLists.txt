@@ -47,6 +47,8 @@ set(${KIT}_SRCS
   SegmentationToolboxClassifyingWidget.h
   VolumeManager.cpp
   VolumeManager.h
+  VolumeSelectorDialog.cpp
+  VolumeSelectorDialog.h
   ${SRC_PREPROCESS}
   ${SRC_CLASSIFY}
   )
@@ -65,6 +67,7 @@ set(${KIT}_MOC_SRCS
   SegmentationToolboxTrainingWidget.h
   SegmentationToolboxClassifyingWidget.h
   VolumeManager.h
+  VolumeSelectorDialog.h
   )
 
 set(${KIT}_UI_SRCS
