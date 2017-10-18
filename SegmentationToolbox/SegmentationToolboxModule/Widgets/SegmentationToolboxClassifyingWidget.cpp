@@ -5,6 +5,7 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QtXml>
 
 #include "ClassifierList.h"
 #include "SupervisedClassifier.h"
@@ -145,7 +146,7 @@ void SegmentationToolboxClassifyingWidget::classifyClicked()
 void SegmentationToolboxClassifyingWidget::loadClicked()
 {
 
-	QString saveFilepath = QFileDialog::getOpenFileName(this, "Open..", "", "Supervised Toolbox Classifiers (*.stc)");
+	QString saveFilepath = QFileDialog::getOpenFileName(this, "Open..", "", "Extensible Markup Language (*.xml)");
 	if (saveFilepath.isEmpty())
 		return;
 	QByteArray serializedTraining;
@@ -157,47 +158,54 @@ void SegmentationToolboxClassifyingWidget::loadClicked()
 	if (serializedTraining.isEmpty())
 		return;
 
+	QDomDocument doc;
+	QString err;
+	if (!doc.setContent(serializedTraining, &err)) {
+		QMessageBox::warning(qSlicerCoreApplication::activeWindow(),
+			"Loading failed",
+			err);
+		return;
+	}
+
+	QDomElement currentChild = doc.firstChildElement();
+
+	if (currentChild.isNull())
+		return;
+
+	QString version = currentChild.attribute("xmlVersion");
+
+	currentChild = currentChild.firstChildElement();
+
 	QString classifierName;
 	QByteArray classifierSettings;
 	QVector<QString> algNames;
 	QVector<QByteArray> algSettings;
-	QList<QByteArray> split = serializedTraining.split('\n');
-
-	for (size_t i = 0; i < split.count(); i++)
-	{
-		QByteArray oneSplit = split.at(i);
-		if (oneSplit.contains("clasifierName=")) {
-			classifierName = QString(oneSplit).remove("clasifierName=");
-		} else if (oneSplit.contains("===classifierSetting===") && ((i + 1) < split.count())) {
-
-			i += 1;
-			QByteArray insideSplit;
-			while (!insideSplit.contains("===/classifierSetting===") && (i < split.count()))
-			{
-				classifierSettings.append(insideSplit + '\n');
-				insideSplit = split.at(i);
-				i++;
+	while (!currentChild.isNull()) {
+		if (currentChild.tagName() == "classifier") {
+			QDomElement settings = currentChild.firstChildElement();
+			if (settings.tagName() == "settings") {
+				if (settings.attribute("format") == "Base64") {
+					classifierSettings = QByteArray::fromBase64(settings.text().toLocal8Bit());
+					classifierName = currentChild.attribute("id");
+				}
 			}
-			classifierSettings.remove(0, 1);
-			classifierSettings.remove(classifierSettings.length() - 1, 1);
-		} else if (oneSplit.contains("preprocessingAlgorithm=")) {
-			QString algName = QString(oneSplit).remove("preprocessingAlgorithm=");
-			algNames.append(algName);
-		} else if (oneSplit.contains("===preprocessingSetting===")) {
-			QByteArray settings;
-			i += 1;
-			QByteArray insideSplit;
-			while (!insideSplit.contains("===/preprocessingSetting===") && (i < split.count()))
-			{
-				settings.append(insideSplit + '\n');
-				insideSplit = split.at(i);
-				i++;
-			}
-			settings.remove(0, 1);
-			settings.remove(settings.length() - 1, 1);
-			algSettings.append(settings);
 		}
+		else if (currentChild.tagName() == "preprocessing") {
+			algNames.append(currentChild.attribute("id"));
+			QDomElement settings = currentChild.firstChildElement();
+			if (settings.tagName() == "settings") {
+				if (settings.attribute("format") == "Base64") {
+					algSettings.append(QByteArray::fromBase64(settings.text().toLocal8Bit()));
+				}
+				else {
+					algSettings.append(QByteArray());
+				}
+			}
+		}
+
+		currentChild = currentChild.nextSiblingElement();
 	}
+
 	changeSelectedClassifier(classifierName, classifierSettings);
 	setImageRangePreprocessingSelector(algNames, algSettings);
 }

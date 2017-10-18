@@ -15,6 +15,7 @@
 #include <QSharedPointer>
 #include <QVBoxLayout>
 #include <QFileDialog>
+#include <QtXml>
 
 //-----------------------------------------------------------------------------
 /// \ingroup Slicer_QtModules_SegmentationToolboxModule
@@ -150,59 +151,48 @@ void SegmentationToolboxTrainingWidget::classifiedImagesSelected(const QStringLi
 
 void SegmentationToolboxTrainingWidget::saveRequested()
 {
-	QByteArray classifier = selectedClassifier->serialize();
-
 	QVector<QStringList> filepathsList = volumeManager->lastTrainingFilepaths();
 	QVector<QSharedPointer<PreprocessingAlgorithm>> algs = volumeManager->lastTrainingAlgorithms();
-	QVector<QByteArray> fileLines;
+
+	QDomDocument doc;
+	QDomElement supervisedClassifierToolbox = doc.createElement("supervisedClassifierToolbox");
+	supervisedClassifierToolbox.setAttribute("xmlVersion", "1.0");
+
+	QDomElement classifier = doc.createElement("classifier");
+	classifier.setAttribute("id", selectedClassifier->name());
+	QDomElement classifierSettings = doc.createElement("settings");
+	classifierSettings.setAttribute("format", "Base64");
+	QDomText b64 = doc.createTextNode(selectedClassifier->serialize().toBase64());
+	classifierSettings.appendChild(b64);
+	classifier.appendChild(classifierSettings);
+	supervisedClassifierToolbox.appendChild(classifier);
+
 	for (size_t i = 0; i < filepathsList.count(); i++)
 	{
-		QByteArray fileLine = "fileCount=";
-		fileLine.append(QByteArray::number(filepathsList.count()));
-		fileLine.append("\n");
-		fileLine.append("fileList=");
-		for (int j = 0; j < filepathsList.at(i).count(); j++) {
-			const QString& singleFilename = filepathsList.at(i).at(j);
-			fileLine.append(singleFilename);
-			if ((j+1) != filepathsList.at(i).count())
-				fileLine.append(",");
-		}
-		fileLine.append("\n");
-		fileLine.append("preprocessingAlgorithm=");
+		QDomElement preprocessing = doc.createElement("preprocessing");
+		QDomElement preprocessingSettings = doc.createElement("settings");
+		preprocessingSettings.setAttribute("format", "Base64");
+
 		if (algs.at(i).isNull()) {
-			fileLine.append("None");
-			fileLine.append("\n");
-			fileLine.append("===preprocessingSetting===\n");
-			fileLine.append("===/preprocessingSetting===");
+			preprocessing.setAttribute("id", "none");
 		}
 		else {
-			fileLine.append(algs.at(i)->name());
-			fileLine.append("\n");
-			fileLine.append("===preprocessingSetting===\n");
-			fileLine.append(algs.at(i)->serialize());
-			fileLine.append("\n");
-			fileLine.append("===/preprocessingSetting===");
+			preprocessing.setAttribute("id", algs.at(i)->name());
+			b64 = doc.createTextNode(algs.at(i)->serialize().toBase64());
 		}
-		fileLine.append("\n");
-		fileLines.append(fileLine);
+		preprocessingSettings.appendChild(b64);
+		preprocessing.appendChild(preprocessingSettings);
+		supervisedClassifierToolbox.appendChild(preprocessing);
 	}
 
-	QByteArray out;
-	out.append("clasifierName=");
-	out.append(selectedClassifier->name());
-	out.append("\n");
-	out.append("===classifierSetting===\n");
-	out.append(selectedClassifier->serialize());
-	out.append("\n===/classifierSetting===\n");
-	for (const QByteArray& byteArray : fileLines)
-		out.append(byteArray);
+	doc.appendChild(supervisedClassifierToolbox);
 
-	QString saveFilepath = QFileDialog::getSaveFileName(this, "Save as..", "", "Supervised Toolbox Classifiers (*.stc)");
+	QString saveFilepath = QFileDialog::getSaveFileName(this, "Save as..", "", "Extensible Markup Language (*.xml)");
 	if (saveFilepath.isEmpty())
 		return;
 
 	QFile file(saveFilepath);
 	file.open(QIODevice::WriteOnly);
-	file.write(out);
+	file.write(doc.toByteArray());
 	file.close();
 }
