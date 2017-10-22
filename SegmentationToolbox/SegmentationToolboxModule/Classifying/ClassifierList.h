@@ -16,6 +16,8 @@ public:
 	ClassifierList();
 	~ClassifierList();
 
+	SupervisedClassifier* returnCopyPointer(const QString& classifierName);
+
 	QList<QSharedPointer<SupervisedClassifier>> classifiers;
 };
 #endif // CLASSIFIER_LIST_H

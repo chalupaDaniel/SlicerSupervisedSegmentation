@@ -120,11 +120,12 @@ void SegmentationToolboxTrainingWidget::classifierSelectionChanged(const QString
 				d->classifierSettings->layout()->removeWidget(selectedClassifier->trainingWidget());
 				selectedClassifier->trainingWidget()->hide();
 			}
-			d->classifierSettings->layout()->addWidget(classifier->trainingWidget());
-			classifier->trainingWidget()->show();
+			// Make a copy of the listed classifier
+			selectedClassifier = QSharedPointer<SupervisedClassifier>(classifierList->returnCopyPointer(classifier->name()));
+			d->classifierSettings->layout()->addWidget(selectedClassifier->trainingWidget());
+			selectedClassifier->trainingWidget()->show();
 			d->classifierSettings->update();
-			volumeManager->setSelectedClassifier(classifier);
-			selectedClassifier = classifier;
+			volumeManager->setSelectedClassifier(selectedClassifier);
 			d->saveAs->setEnabled(false);
 		}
 	}

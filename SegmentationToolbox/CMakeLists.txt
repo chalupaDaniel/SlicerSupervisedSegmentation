@@ -4,7 +4,7 @@ project(SegmentationToolbox)
 
 #-----------------------------------------------------------------------------
 # Extension meta-information
-set(EXTENSION_HOMEPAGE "http://slicer.org/slicerWiki/index.php/Documentation/Nightly/Extensions/SegmentationToolbox")
+set(EXTENSION_HOMEPAGE "https://github.com/chalupaDaniel/slicerSupervisedSegmentation")
 set(EXTENSION_CATEGORY "Segmentation")
 set(EXTENSION_CONTRIBUTORS "Daniel Chalupa")
 set(EXTENSION_DESCRIPTION "This is an example of a simple extension")

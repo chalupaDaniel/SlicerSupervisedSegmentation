@@ -31,7 +31,7 @@
 #include <QFile>
 
 VolumeManager::VolumeManager(qSlicerCoreIOManager* manager, const std::string& id)
-	: QObject(), slicerIoManager(manager), preprocessingIdCounter(0), volumeManagerId(id), classifiedImages(0)
+	: QObject(), slicerIoManager(manager), preprocessingIdCounter(0), volumeManagerId(id), classifiedImages(0), allClassifiedCounter(0)
 {
 
 }
@@ -48,17 +48,19 @@ void VolumeManager::switchPreview(QSharedPointer<PreprocessingAlgorithm> alg, co
 	
 	createPreprocessingJob(alg, volumeNode, nodeToPreprocess, PreprocessingJob::Preview);
 }
+void VolumeManager::showVolume(vtkSmartPointer<vtkMRMLNode> volumeToShow)
+{
+	qSlicerCoreApplication::application()->applicationLogic()->GetSelectionNode()->SetActiveVolumeID(volumeToShow->GetID());
+	qSlicerCoreApplication::application()->applicationLogic()->PropagateVolumeSelection();
+}
 
 void VolumeManager::volumeClassified(vtkSmartPointer<vtkMRMLNode> result)
 {
-	qSlicerCoreApplication::application()->applicationLogic()->GetSelectionNode()->SetActiveVolumeID(result->GetID());
-	qSlicerCoreApplication::application()->applicationLogic()->PropagateVolumeSelection();
+	showVolume(result);
 	classifiedImages--;
 	if (!classifiedImages) {
-		emit classifyingComplete();
+		emit classifyingComplete(result);
 		clearTemporaryVolumes();
-		qSlicerCoreApplication::application()->applicationLogic()->GetSelectionNode()->SetActiveVolumeID(result->GetID());
-		qSlicerCoreApplication::application()->applicationLogic()->PropagateVolumeSelection();
 
 		vtkSmartPointer<vtkMRMLScalarVolumeDisplayNode> display = vtkMRMLScalarVolumeDisplayNode::SafeDownCast(qSlicerCoreApplication::application()->mrmlScene()->GetNodeByID(result->GetNodeReferenceID("display")));
 		if (display.GetPointer() != nullptr) {
@@ -82,8 +84,7 @@ void VolumeManager::preprocessingJobComplete(int refId)
 		switch (job.role)
 		{
 		case PreprocessingJob::Preview:
-			qSlicerCoreApplication::application()->applicationLogic()->GetSelectionNode()->SetActiveVolumeID(job.finishedNode->GetID());
-			qSlicerCoreApplication::application()->applicationLogic()->PropagateVolumeSelection();
+			showVolume(job.finishedNode);
 			emit previewComplete();
 			break;
 		case PreprocessingJob::Train :
@@ -294,7 +295,8 @@ void VolumeManager::startClassifyingSequence(QVector<QStringList> filepaths, con
 		qSlicerCoreApplication::application()->mrmlScene()->AddNode(volDisplay.GetPointer());
 
 		vtkNew<vtkMRMLScalarVolumeNode> vol;
-		vol.GetPointer()->SetName(std::string("ST " + volumeManagerId + " Result " + std::to_string(i)).c_str());
+		vol.GetPointer()->SetName(std::string("ST " + volumeManagerId + " Result " + std::to_string(allClassifiedCounter) + std::to_string(i)).c_str());
+		allClassifiedCounter++;
 		vol.GetPointer()->AddAndObserveDisplayNodeID(volDisplay.GetPointer()->GetID());
 
 		qSlicerCoreApplication::application()->mrmlScene()->AddNode(vol.GetPointer());

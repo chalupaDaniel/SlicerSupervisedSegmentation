@@ -23,6 +23,8 @@ set(SRC_CLASSIFY
   ../Classifying/ClassifierSharkSvmC.h
   ../Classifying/ClassifierSharkRandomForest.cpp
   ../Classifying/ClassifierSharkRandomForest.h
+  ../Classifying/ClassificationResultCombinator.cpp
+  ../Classifying/ClassificationResultCombinator.h
 )
 
 set(SRC_PREPROCESS
@@ -49,6 +51,8 @@ set(${KIT}_SRCS
   VolumeManager.h
   VolumeSelectorDialog.cpp
   VolumeSelectorDialog.h
+  ClassifierWidget.cpp
+  ClassifierWidget.h
   ${SRC_PREPROCESS}
   ${SRC_CLASSIFY}
   )
@@ -64,10 +68,12 @@ set(${KIT}_MOC_SRCS
   ../Classifying/ClassifierDlibSvmC.h
   ../Classifying/ClassifierSharkSvmC.h
   ../Classifying/ClassifierSharkRandomForest.h
+  ../Classifying/ClassificationResultCombinator.h
   SegmentationToolboxTrainingWidget.h
   SegmentationToolboxClassifyingWidget.h
   VolumeManager.h
   VolumeSelectorDialog.h
+  ClassifierWidget.h
   )
 
 set(${KIT}_UI_SRCS

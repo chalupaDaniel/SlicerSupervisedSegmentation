@@ -32,8 +32,8 @@ public:
 	QWidget* classifyingWidget() const;
 	QWidget* trainingWidget() const;
 
-	virtual QByteArray serialize() = 0;
-	virtual bool deserialize(const QByteArray& serializedClassifier) = 0;
+	virtual QByteArray serialize() { return QByteArray(); }
+	virtual bool deserialize(const QByteArray& serializedClassifier) { return false; }
 signals:
 	// This signal is necessary for UI unlocking after training
 	void finishedTraining();
@@ -42,11 +42,11 @@ signals:
 public slots:
 	// It is not necessary to start training on this slot, but it is recommended
 	// This function is called from VolumeManager (main thread)
-	virtual void startTraining() = 0;
+	virtual void startTraining() {}
 	// This function is called from VolumeManager (main thread)
-	virtual void addVolumesToTraining(const QVector<vtkSmartPointer<vtkMRMLNode>>& volumes, const vtkSmartPointer<vtkMRMLNode> truth) = 0;
+	virtual void addVolumesToTraining(const QVector<vtkSmartPointer<vtkMRMLNode>>& volumes, const vtkSmartPointer<vtkMRMLNode> truth) {}
 	// This function is called from VolumeManager (main thread)
-	virtual void addVolumesToClassifying(const QVector<vtkSmartPointer<vtkMRMLNode>>& volumes, vtkSmartPointer<vtkMRMLNode> result) = 0;
+	virtual void addVolumesToClassifying(const QVector<vtkSmartPointer<vtkMRMLNode>>& volumes, vtkSmartPointer<vtkMRMLNode> result) {}
 
 protected:
 	QString classifierName;

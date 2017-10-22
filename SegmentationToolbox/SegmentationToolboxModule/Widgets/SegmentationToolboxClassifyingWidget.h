@@ -6,12 +6,17 @@
 #include <QStringList>
 #include <QSharedPointer>
 
+#include "vtkSmartPointer.h"
+
 #include "qSlicerSegmentationToolboxModuleModuleWidgetsExport.h"
 
 class SegmentationToolboxClassifyingWidgetPrivate;
 class SupervisedClassifier;
 class ClassifierList;
 class VolumeManager;
+class ClassifierWidget;
+class ClassificationResultCombinator;
+class vtkMRMLNode;
 
 /// \ingroup Slicer_QtModules_SegmentationToolboxModule
 class Q_SLICER_MODULE_SEGMENTATIONTOOLBOXMODULE_WIDGETS_EXPORT SegmentationToolboxClassifyingWidget
@@ -23,8 +28,7 @@ public:
 	SegmentationToolboxClassifyingWidget(QWidget *parent = 0);
 	virtual ~SegmentationToolboxClassifyingWidget();
 
-	public slots:
-	void changeSelectedClassifier(const QString& name, const QByteArray& settings);
+public slots:
 	void setImageRangePreprocessingSelector(const QVector<QString>& algNames, const QVector<QByteArray>& algSettings);
 
 
@@ -32,19 +36,29 @@ protected:
 	QScopedPointer<SegmentationToolboxClassifyingWidgetPrivate> d_ptr;
 
 private:
-
 	Q_DECLARE_PRIVATE(SegmentationToolboxClassifyingWidget);
 	Q_DISABLE_COPY(SegmentationToolboxClassifyingWidget);
 
-	QSharedPointer<SupervisedClassifier> selectedClassifier;
+	// Goes through all loaded classifiers
+	void classificationStep();
+
+	// Combines classification results
+	void combineResults();
+
 	QSharedPointer<ClassifierList> classifierList;
 	VolumeManager* volumeManager;
 
+	QVector<ClassifierWidget*> classifierWidgets;
+	int currentClassifierIndex;
+	ClassificationResultCombinator* combinator;
+
 private slots:
-	void loadClicked();
+	void addClassifierClicked();
 	void disableEditing();
 	void enableEditing();
 	void classifyClicked();
+	void classifierWidgetClearRequested();
+	void singleClassifierFinished(vtkSmartPointer<vtkMRMLNode> result);
 };
 
 #endif // SEGMENTATION_TOOLBOX_CLASSIFYING_WIDGET_H

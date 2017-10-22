@@ -15,13 +15,6 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout_3">
    <item>
-    <widget class="QPushButton" name="load">
-     <property name="text">
-      <string>Load..</string>
-     </property>
-    </widget>
-   </item>
-   <item>
     <widget class="QGroupBox" name="groupBox">
      <property name="title">
       <string>Input</string>
@@ -54,46 +47,28 @@
     </widget>
    </item>
    <item>
+    <widget class="QPushButton" name="addClassifier">
+     <property name="text">
+      <string>Add classifier</string>
+     </property>
+    </widget>
+   </item>
+   <item>
     <widget class="QGroupBox" name="groupBox_2">
      <property name="title">
       <string>Classifier</string>
      </property>
-     <layout class="QVBoxLayout" name="verticalLayout">
-      <item>
-       <widget class="QLabel" name="classifierName">
-        <property name="text">
-         <string>Classifier name</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QWidget" name="classifierSettings" native="true"/>
-      </item>
-      <item>
-       <spacer name="verticalSpacer_2">
-        <property name="orientation">
-         <enum>Qt::Vertical</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>20</width>
-          <height>40</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item>
-       <layout class="QHBoxLayout" name="horizontalLayout">
-        <item>
-         <widget class="QPushButton" name="classify">
-          <property name="text">
-           <string>Classify</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
-     </layout>
+     <layout class="QVBoxLayout" name="verticalLayout"/>
+    </widget>
+   </item>
+   <item>
+    <widget class="QComboBox" name="combination"/>
+   </item>
+   <item>
+    <widget class="QPushButton" name="classify">
+     <property name="text">
+      <string>Classify</string>
+     </property>
     </widget>
    </item>
   </layout>

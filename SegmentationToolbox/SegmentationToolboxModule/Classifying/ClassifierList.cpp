@@ -15,3 +15,17 @@ ClassifierList::ClassifierList()
 ClassifierList::~ClassifierList()
 {
 }
+
+SupervisedClassifier* ClassifierList::returnCopyPointer(const QString& classifierName)
+{
+	if (classifierName == "Nu Support Vector Machine - Dlib") {
+		return new ClassifierDlibSvmNuNamespace::ClassifierDlibSvmNu();
+	} else if (classifierName == "C Support Vector Machine - Dlib") {
+		return new ClassifierDlibSvmCNamespace::ClassifierDlibSvmC();
+	} else if (classifierName == "C Support Vector Machine - Shark") {
+		return new ClassifierSharkSvmCNamespace::ClassifierSharkSvmC();
+	} else if (classifierName == "Random Forest - Shark") {
+		return new ClassifierSharkRandomForestNamespace::ClassifierSharkRandomForest();
+	} else
+		return nullptr;
+}

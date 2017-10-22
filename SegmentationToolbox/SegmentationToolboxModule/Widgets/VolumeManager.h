@@ -64,10 +64,11 @@ public:
 signals:
 	void previewComplete();
 	void trainingComplete();
-	void classifyingComplete();
+	void classifyingComplete(vtkSmartPointer<vtkMRMLNode> result);
 
 public slots:
 	void switchPreview(QSharedPointer<PreprocessingAlgorithm> alg, const QString& pathName);
+	void showVolume(vtkSmartPointer<vtkMRMLNode> volumeToShow);
 
 private:
 	void clearPreview();
@@ -88,6 +89,7 @@ private:
 
 	int preprocessingIdCounter;
 	int classifiedImages;
+	int allClassifiedCounter;
 
 private slots:
 	void preprocessingJobComplete(int refId);

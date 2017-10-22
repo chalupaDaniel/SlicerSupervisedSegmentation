@@ -10,6 +10,10 @@
 #include "ClassifierList.h"
 #include "SupervisedClassifier.h"
 #include "VolumeManager.h"
+#include "ClassifierWidget.h"
+#include "ClassificationResultCombinator.h"
+
+#include "vtkMRMLNode.h"
 
 #include "qSlicerCoreApplication.h"
 
@@ -50,17 +54,13 @@ void SegmentationToolboxClassifyingWidgetPrivate
 SegmentationToolboxClassifyingWidget
 ::SegmentationToolboxClassifyingWidget(QWidget* parentWidget)
 : Superclass(parentWidget)
-, d_ptr(new SegmentationToolboxClassifyingWidgetPrivate(*this)), selectedClassifier(nullptr)
+, d_ptr(new SegmentationToolboxClassifyingWidgetPrivate(*this))
 {
 	Q_D(SegmentationToolboxClassifyingWidget);
 	d->setupUi(this);
 
-	d->classifierSettings->setLayout(new QVBoxLayout());
-
 	d->classify->setEnabled(false);
-	d->classifierName->setText("Load or train a classifier");
 
-	connect(d->load, SIGNAL(clicked()), this, SLOT(loadClicked()));
 	connect(d->classify, SIGNAL(clicked()), this, SLOT(classifyClicked()));
 
 	classifierList = QSharedPointer<ClassifierList>(new ClassifierList());
@@ -73,8 +73,18 @@ SegmentationToolboxClassifyingWidget
 	connect(d->imageRangePreprocessingSelector, SIGNAL(previewRequested(QSharedPointer<PreprocessingAlgorithm>, const QString&)),
 		volumeManager, SLOT(switchPreview(QSharedPointer<PreprocessingAlgorithm>, const QString&)));
 	connect(volumeManager, SIGNAL(previewComplete()), this, SLOT(enableEditing()));
-	connect(volumeManager, SIGNAL(classifyingComplete()), this, SLOT(enableEditing()));
+	connect(volumeManager, SIGNAL(classifyingComplete(vtkSmartPointer<vtkMRMLNode>)), this, SLOT(singleClassifierFinished(vtkSmartPointer<vtkMRMLNode>)));
 	connect(d->addImages, SIGNAL(clicked()), d->imageRangePreprocessingSelector, SLOT(addRow()));
+	connect(d->addClassifier, SIGNAL(clicked()), this, SLOT(addClassifierClicked()));
+
+	d->combination->addItem("No Combination", ClassificationResultCombinator::NoCombination);
+	d->combination->addItem("Logical AND", ClassificationResultCombinator::LogicalAnd);
+	d->combination->addItem("Logical OR", ClassificationResultCombinator::LogicalOr);
+	d->combination->addItem("Statistical MODE", ClassificationResultCombinator::StatisticalMode);
+	d->combination->hide();
+
+	combinator = new ClassificationResultCombinator(this);
+	connect(combinator, SIGNAL(finishedCombining(vtkSmartPointer<vtkMRMLNode>)), volumeManager, SLOT(showVolume(vtkSmartPointer<vtkMRMLNode>)));
 }
 
 //-----------------------------------------------------------------------------
@@ -101,32 +111,6 @@ void SegmentationToolboxClassifyingWidget::setImageRangePreprocessingSelector(co
 
 }
 
-void SegmentationToolboxClassifyingWidget::changeSelectedClassifier(const QString& name, const QByteArray& settings)
-{
-	Q_D(SegmentationToolboxClassifyingWidget);
-	for (QSharedPointer<SupervisedClassifier> classifier : classifierList->classifiers)
-	{
-		if (classifier->name() == name)
-		{
-			if (selectedClassifier != nullptr) {
-				d->classifierSettings->layout()->removeWidget(selectedClassifier->classifyingWidget());
-				selectedClassifier->classifyingWidget()->hide();
-			}
-			if (classifier->deserialize(settings)) {
-				selectedClassifier = classifier;
-				volumeManager->setSelectedClassifier(selectedClassifier);
-				d->classifierName->setText(name);
-				d->classify->setEnabled(true);
-
-				d->classifierSettings->layout()->addWidget(classifier->classifyingWidget());
-				classifier->classifyingWidget()->show();
-				d->classifierSettings->update();
-			}
-			break;
-		}
-	}
-}
-
 void SegmentationToolboxClassifyingWidget::disableEditing()
 {
 	setEnabled(false);
@@ -138,14 +122,41 @@ void SegmentationToolboxClassifyingWidget::enableEditing()
 
 void SegmentationToolboxClassifyingWidget::classifyClicked()
 {
-	Q_D(SegmentationToolboxClassifyingWidget);
 	disableEditing();
-	volumeManager->startClassifyingSequence(d->imageRangePreprocessingSelector->allFilenames(), d->imageRangePreprocessingSelector->algorithms());
+	currentClassifierIndex = 0;
+
+	classificationStep();
 }
 
-void SegmentationToolboxClassifyingWidget::loadClicked()
+void SegmentationToolboxClassifyingWidget::classificationStep()
 {
+	Q_D(SegmentationToolboxClassifyingWidget);
 
+	volumeManager->setSelectedClassifier(classifierWidgets.at(currentClassifierIndex)->classifier());
+	volumeManager->startClassifyingSequence(d->imageRangePreprocessingSelector->allFilenames(), d->imageRangePreprocessingSelector->algorithms());
+
+	currentClassifierIndex++;
+}
+void SegmentationToolboxClassifyingWidget::singleClassifierFinished(vtkSmartPointer<vtkMRMLNode> result)
+{
+	if (currentClassifierIndex == classifierWidgets.count()) {
+		combinator->addToClassifiedBuffer(result);
+		combineResults();
+		enableEditing();
+	} else {
+		combinator->addToClassifiedBuffer(result);
+		classificationStep();
+	}
+}
+void SegmentationToolboxClassifyingWidget::combineResults()
+{
+	Q_D(SegmentationToolboxClassifyingWidget);
+
+	combinator->combine(d->combination->itemData(d->combination->currentIndex()).toInt());
+}
+
+void SegmentationToolboxClassifyingWidget::addClassifierClicked()
+{
 	QString saveFilepath = QFileDialog::getOpenFileName(this, "Open..", "", "Extensible Markup Language (*.xml)");
 	if (saveFilepath.isEmpty())
 		return;
@@ -196,8 +207,7 @@ void SegmentationToolboxClassifyingWidget::loadClicked()
 			if (settings.tagName() == "settings") {
 				if (settings.attribute("format") == "Base64") {
 					algSettings.append(QByteArray::fromBase64(settings.text().toLocal8Bit()));
-				}
-				else {
+				} else {
 					algSettings.append(QByteArray());
 				}
 			}
@@ -206,6 +216,65 @@ void SegmentationToolboxClassifyingWidget::loadClicked()
 		currentChild = currentChild.nextSiblingElement();
 	}
 
-	changeSelectedClassifier(classifierName, classifierSettings);
-	setImageRangePreprocessingSelector(algNames, algSettings);
+	Q_D(SegmentationToolboxClassifyingWidget);
+	if (classifierWidgets.isEmpty()) {
+		setImageRangePreprocessingSelector(algNames, algSettings);
+	} else {
+		if (d->imageRangePreprocessingSelector->algorithms().count() != algNames.count()) {
+			QMessageBox::warning(qSlicerCoreApplication::activeWindow(),
+				"Loading failed",
+				"The selected classifier has different input dimensions to previous classifiers");
+			return;
+		}
+	}
+
+	for (QSharedPointer<SupervisedClassifier> classifier : classifierList->classifiers)
+	{
+		if (classifier->name() == classifierName)
+		{
+			QSharedPointer<SupervisedClassifier> selectedClassifier = QSharedPointer<SupervisedClassifier>(classifierList->returnCopyPointer(classifierName));
+			if (selectedClassifier->deserialize(classifierSettings)) {
+
+				d->classify->setEnabled(true);
+
+				ClassifierWidget* cWidget = new ClassifierWidget(selectedClassifier, this);
+
+				classifierWidgets.append(cWidget);
+
+				connect(cWidget, SIGNAL(clearRequest()), this, SLOT(classifierWidgetClearRequested()));
+
+				d->groupBox_2->layout()->addWidget(classifierWidgets.back());
+				d->groupBox_2->update();
+
+				if (classifierWidgets.count() > 1)
+					d->combination->show();
+			}
+			break;
+		}
+	}
+}
+
+void SegmentationToolboxClassifyingWidget::classifierWidgetClearRequested()
+{
+	ClassifierWidget* cWidget = qobject_cast<ClassifierWidget*>(sender());
+
+	if (cWidget == nullptr)
+		return;
+
+	Q_D(SegmentationToolboxClassifyingWidget);
+
+	d->groupBox_2->layout()->removeWidget(cWidget);
+	d->groupBox_2->update();
+
+	classifierWidgets.remove(classifierWidgets.indexOf(cWidget));
+
+	delete cWidget;
+
+	if (classifierWidgets.isEmpty())
+		d->classify->setEnabled(false);
+
+	if (classifierWidgets.count() <= 1) {
+		d->combination->setCurrentIndex(0);
+		d->combination->hide();
+	}
 }
