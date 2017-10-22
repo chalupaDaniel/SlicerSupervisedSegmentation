@@ -8,6 +8,7 @@
 #include "vtkMRMLScene.h"
 #include "vtkMRMLScalarVolumeNode.h"
 #include "vtkImageData.h"
+#include "vtkMatrix4x4.h"
 
 #include <string>
 #include <QMap>
@@ -57,8 +58,10 @@ void ClassificationResultCombinator::combineLogicalAnd()
 	vtkNew<vtkMRMLScalarVolumeDisplayNode> volDisplay;
 	vtkNew<vtkImageData> volData;
 	vtkNew<vtkMRMLScalarVolumeNode> vol;
+	vtkSmartPointer<vtkMatrix4x4> mat = vtkSmartPointer<vtkMatrix4x4>::New();
+	vtkMRMLVolumeNode::SafeDownCast(classifiedBuffer.at(0))->GetIJKToRASDirectionMatrix(mat);
 
-	prepareFinalVolume(dims, volDisplay.GetPointer(), volData.GetPointer(), vol.GetPointer());
+	prepareFinalVolume(dims, vtkMRMLVolumeNode::SafeDownCast(classifiedBuffer.at(0))->GetOrigin(), mat, volDisplay.GetPointer(), volData.GetPointer(), vol.GetPointer());
 	volumesCombined++;
 
 	for (size_t i = 0; i < dims[0]; i++) {
@@ -89,14 +92,16 @@ void ClassificationResultCombinator::combineLogicalOr()
 	vtkNew<vtkMRMLScalarVolumeDisplayNode> volDisplay;
 	vtkNew<vtkImageData> volData;
 	vtkNew<vtkMRMLScalarVolumeNode> vol;
+	vtkSmartPointer<vtkMatrix4x4> mat = vtkSmartPointer<vtkMatrix4x4>::New();
+	vtkMRMLVolumeNode::SafeDownCast(classifiedBuffer.at(0))->GetIJKToRASDirectionMatrix(mat);
 
-	prepareFinalVolume(dims, volDisplay.GetPointer(), volData.GetPointer(), vol.GetPointer());
+	prepareFinalVolume(dims, vtkMRMLVolumeNode::SafeDownCast(classifiedBuffer.at(0))->GetOrigin(), mat, volDisplay.GetPointer(), volData.GetPointer(), vol.GetPointer());
 	volumesCombined++;
 
 	for (size_t i = 0; i < dims[0]; i++) {
 		for (size_t j = 0; j < dims[1]; j++) {
 			for (size_t k = 0; k < dims[2]; k++) {
-				bool label = true;
+				bool label = false;
 				for (size_t volumeIndex = 0; volumeIndex < nodesImageData.count(); volumeIndex++) {
 					label |= !qFuzzyCompare(nodesImageData.at(volumeIndex)->GetScalarComponentAsDouble(i, j, k, 0), 0.0);
 				}
@@ -108,6 +113,8 @@ void ClassificationResultCombinator::combineLogicalOr()
 	vol->SetAndObserveImageData(volData.GetPointer());
 
 	emit finishedCombining(vtkMRMLNode::SafeDownCast(vol.GetPointer()));
+
+	clearBuffer();
 }
 void ClassificationResultCombinator::combineStatMode()
 {
@@ -121,8 +128,10 @@ void ClassificationResultCombinator::combineStatMode()
 	vtkNew<vtkMRMLScalarVolumeDisplayNode> volDisplay;
 	vtkNew<vtkImageData> volData;
 	vtkNew<vtkMRMLScalarVolumeNode> vol;
+	vtkSmartPointer<vtkMatrix4x4> mat = vtkSmartPointer<vtkMatrix4x4>::New();
+	vtkMRMLVolumeNode::SafeDownCast(classifiedBuffer.at(0))->GetIJKToRASDirectionMatrix(mat);
 
-	prepareFinalVolume(dims, volDisplay.GetPointer(), volData.GetPointer(), vol.GetPointer());
+	prepareFinalVolume(dims, vtkMRMLVolumeNode::SafeDownCast(classifiedBuffer.at(0))->GetOrigin(), mat, volDisplay.GetPointer(), volData.GetPointer(), vol.GetPointer());
 	volumesCombined++;
 
 	for (size_t i = 0; i < dims[0]; i++) {
@@ -158,8 +167,10 @@ QVector<vtkSmartPointer<vtkImageData>> ClassificationResultCombinator::prepareIm
 		vtkSmartPointer<vtkMRMLVolumeNode> node = vtkMRMLVolumeNode::SafeDownCast(classifiedBuffer.at(i));
 		nodesImageData.append(node->GetImageData());
 	}
+
+	return nodesImageData;
 }
-void ClassificationResultCombinator::prepareFinalVolume(const int* const dimensions, vtkSmartPointer<vtkMRMLScalarVolumeDisplayNode> display, vtkSmartPointer<vtkImageData> data,
+void ClassificationResultCombinator::prepareFinalVolume(const int* const dimensions, double* origin, vtkMatrix4x4* ijk, vtkSmartPointer<vtkMRMLScalarVolumeDisplayNode> display, vtkSmartPointer<vtkImageData> data,
 	vtkSmartPointer<vtkMRMLScalarVolumeNode> volume) const
 {
 	data.GetPointer()->SetDimensions(dimensions);
@@ -170,7 +181,12 @@ void ClassificationResultCombinator::prepareFinalVolume(const int* const dimensi
 
 	volume.GetPointer()->SetName(std::string("ST " + std::string("Combined Results ") + std::to_string(volumesCombined)).c_str());
 
-	volume.GetPointer()->AddAndObserveDisplayNodeID(display.GetPointer()->GetID());
+	volume.GetPointer()->AddAndObserveDisplayNodeID(display.GetPointer()->GetID());	
+
+	// set origin and rotation
+	volume->SetOrigin(origin);
+	volume->SetIJKToRASDirectionMatrix(ijk);
+
 
 	qSlicerCoreApplication::application()->mrmlScene()->AddNode(volume.GetPointer());
 }

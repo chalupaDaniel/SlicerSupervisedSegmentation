@@ -87,6 +87,7 @@ void PreprocessingGaussFilter::preprocess(vtkSmartPointer<vtkMRMLNode> inputNode
 	emit preprocessingDone(referenceId);
 }
 
+#include <QDebug>
 QByteArray PreprocessingGaussFilter::serialize() const
 {
 	QByteArray out;
@@ -95,11 +96,13 @@ QByteArray PreprocessingGaussFilter::serialize() const
 	out.append("\n");
 	out.append("Std=");
 	out.append(QByteArray::number(std));
+	qDebug() << out;
 	return out;
 }
 
 bool PreprocessingGaussFilter::deserialize(const QByteArray& byteArray)
 {
+	qDebug() << byteArray;
 	QList<QByteArray> settings = byteArray.split('\n');
 
 	if (settings.count() < 3)
@@ -115,5 +118,7 @@ bool PreprocessingGaussFilter::deserialize(const QByteArray& byteArray)
 			std = split.at(1).toDouble();
 		}
 	}
+
+	cancelled();
 	return true;
 }

@@ -6,6 +6,10 @@
 #include "vtkSmartPointer.h"
 
 class vtkMRMLNode;
+class vtkImageData;
+class vtkMRMLScalarVolumeDisplayNode;
+class vtkMRMLScalarVolumeNode;
+class vtkMatrix4x4;
 class ClassificationResultCombinator : public QObject
 {
 	Q_OBJECT
@@ -31,7 +35,7 @@ private:
 	void combineStatMode();
 
 	QVector<vtkSmartPointer<vtkImageData>> prepareImageData(const QVector<vtkSmartPointer<vtkMRMLNode>>& classifiedBuffer) const;
-	void prepareFinalVolume(const int* const dimensions, vtkSmartPointer<vtkMRMLScalarVolumeDisplayNode> display, vtkSmartPointer<vtkImageData> data,
+	void prepareFinalVolume(const int* const dimensions, double* origin, vtkMatrix4x4* ijk, vtkSmartPointer<vtkMRMLScalarVolumeDisplayNode> display, vtkSmartPointer<vtkImageData> data,
 		vtkSmartPointer<vtkMRMLScalarVolumeNode> volume) const;
 
 	QVector<vtkSmartPointer<vtkMRMLNode>> classifiedBuffer;

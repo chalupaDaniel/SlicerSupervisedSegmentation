@@ -130,5 +130,6 @@ bool PreprocessingMedian3d::deserialize(const QByteArray& byteArray)
 			maskSizeZ = split.at(1).toInt();
 		}
 	}
+	cancelled();
 	return true;
 }
