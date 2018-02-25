@@ -4,7 +4,6 @@
 #include <QWidget>
 #include <QPushButton>
 #include <QMutex>
-#include <QWaitCondition>
 #include <QMessageBox>
 #include <QLineEdit>
 #include <QDateTime>
@@ -88,7 +87,7 @@ ClassifierSharkRandomForest::ClassifierSharkRandomForest()
 }
 ClassifierSharkRandomForest::~ClassifierSharkRandomForest()
 {
-	worker->deleteLater();
+	delete worker;
 }
 
 QByteArray ClassifierSharkRandomForest::serialize()
@@ -246,12 +245,11 @@ void ClassifierSharkRandomForest::startTraining()
 	worker->setNodeSize(ui.nodeSize->text().toInt());
 	worker->setOob(ui.oob->text().toDouble());
 
-	worker->train();
+	worker->startTraining();
 }
 
 ClassifierSharkRandomForestWorker::ClassifierSharkRandomForestWorker()
-	: QThread(), mutex(new QMutex()),
-	waitCondition(new QWaitCondition()), readyToTrain(false),
+	: SupervisedClassifierWorker(),
 	autoOptimize(false), decisionFunction(funct_type(&normalizer, &classifier))
 {
 	subthreadCount = qMax<int>(QThread::idealThreadCount() - 1, 4);
@@ -259,9 +257,8 @@ ClassifierSharkRandomForestWorker::ClassifierSharkRandomForestWorker()
 
 ClassifierSharkRandomForestWorker::~ClassifierSharkRandomForestWorker()
 {
-	delete mutex;
-	delete waitCondition;
-	exit();
+	delete classifyMutex;
+	delete optimizeMutex;
 }
 
 funct_type ClassifierSharkRandomForestWorker::getDecisionFunction()
@@ -269,288 +266,225 @@ funct_type ClassifierSharkRandomForestWorker::getDecisionFunction()
 	return this->decisionFunction;
 }
 
-void ClassifierSharkRandomForestWorker::appendToTrainingQueue(const QVector<vtkSmartPointer<vtkMRMLNode>>& volumes, const vtkSmartPointer<vtkMRMLNode> truth)
-{
-	QMutexLocker lock(mutex);
-
-	SingleVolumeTrainingEntry entry;
-	entry.truth = truth;
-	entry.volumes = volumes;
-	trainingEntriesQueue.append(entry);
-
-	waitCondition->wakeAll();
-}
-
-void ClassifierSharkRandomForestWorker::appendToClassifyingQueue(const QVector<vtkSmartPointer<vtkMRMLNode>>& volumes, vtkSmartPointer<vtkMRMLNode> result)
-{
-	QMutexLocker lock(mutex);
-
-	if (decisionFunction.name() == "") {
-		QMessageBox::warning(qSlicerApplication::activeWindow(), "No decision function", "This classifier is currently untrained. Aborting.");
-		return;
-	}
-
-	SingleVolumeClassifyingEntry entry;
-	entry.result = result;
-	entry.volumes = volumes;
-	classifyingEntriesQueue.append(entry);
-
-	waitCondition->wakeAll();
-}
-
-void ClassifierSharkRandomForestWorker::train()
-{
-	QMutexLocker lock(mutex);
-	readyToTrain = true;
-
-	waitCondition->wakeAll();
-}
-
 void ClassifierSharkRandomForestWorker::setOptimization(bool state)
 {
-	QMutexLocker lock(mutex);
 	autoOptimize = state;
 }
-
-void ClassifierSharkRandomForestWorker::run()
+void ClassifierSharkRandomForestWorker::processTraining()
 {
-	forever{
-		QMutexLocker lock(mutex);
-	// Train when all training volumes have been loaded and train function has been called
-	if (trainingEntriesQueue.isEmpty() && classifyingEntriesQueue.isEmpty()) {
-		if (readyToTrain) {
-
-			lock.unlock();
-			using namespace shark;
-			dataset = shark::createLabeledDataFromRange(samples, labels);
+	using namespace shark;
+	dataset = shark::createLabeledDataFromRange(samples, labels);
 
 
-			qDebug() << "Samples: " << dataset.numberOfElements();
+	qDebug() << "Samples: " << dataset.numberOfElements();
 
 
-			qDebug() << "Normalizing...";
-			NormalizeComponentsUnitVariance<RealVector> normalizingTrainer(true);
-			normalizingTrainer.train(normalizer, dataset.inputs());
+	qDebug() << "Normalizing...";
+	NormalizeComponentsUnitVariance<RealVector> normalizingTrainer(true);
+	normalizingTrainer.train(normalizer, dataset.inputs());
 
-			// Transform data
-			dataset.inputs() = transform(dataset.inputs(), normalizer);
+	// Transform data
+	dataset.inputs() = transform(dataset.inputs(), normalizer);
 
-			if (autoOptimize) {
-				qDebug() << "Optimizing..";
-				optimize();
-				emit infoMessageBoxRequest("Optimization finished",
-					QString("Maximum sensitivity: %1 \nMaximum specificity: %2 \nRandom attributes: %3 \nNumber of trees: %4 \nNode size: %5 \nOOB samples: %6 \nCSV file with all results is in <Slicer root>\\SharkRandomForest.csv")
-					.arg(bestSens).arg(bestSpec).arg(randAttr).arg(numTrees).arg(nodeSize).arg(oob), "OK");
-			}
-
-			RFTrainer trainer;
-			trainer.setMTry(randAttr);
-			trainer.setNTrees(numTrees);
-			trainer.setNodeSize(nodeSize);
-			trainer.setOOBratio(oob);
-
-			qDebug() << "Random attribute number: " << randAttr;
-			qDebug() << "Number of trees: " << numTrees;
-			qDebug() << "Node Size: " << nodeSize;
-			qDebug() << "OOB ratio: " << oob;
-
-			qDebug() << "Training";
-
-			trainer.train(classifier, dataset);
-
-			decisionFunction = (normalizer >> classifier);
-
-			qDebug() << "Finished";
-
-			//dataset = shark::createLabeledDataFromRange(allSamples, allLabels);
-			//
-			//
-			//std::vector<unsigned int> classifiedResults;
-			//
-			//for (size_t j = 0; j < allSamples.size(); j++) {
-			//	shark::RealVector a;
-			//	decisionFunction.eval(allSamples.at(j), a);
-			//
-			//	int label = 0;
-			//	double max = 0.0;
-			//	for (size_t k = 0; k < a.size(); k++) {
-			//		if (a(k) > max) {
-			//			max = a(k);
-			//			label = k;
-			//		}
-			//	}
-			//	classifiedResults.push_back(label);
-			//}
-			//
-			//QPair<double, double> out = sensSpec(classifiedResults, dataset.labels(), selectedLabels);
-			//qDebug() << "Sensitivity" << out.first << "Specificity" << out.second;
-			emit classifierTrained();
-
-			dataset = shark::ClassificationDataset();
-			samples.clear();
-			labels.clear();
-		}
-		waitCondition->wait(mutex);
-		lock.unlock();
+	if (autoOptimize) {
+		qDebug() << "Optimizing..";
+		optimize();
+		emit infoMessageBoxRequest("Optimization finished",
+			QString("Maximum sensitivity: %1 \nMaximum specificity: %2 \nRandom attributes: %3 \nNumber of trees: %4 \nNode size: %5 \nOOB samples: %6 \nCSV file with all results is in <Slicer root>\\SharkRandomForest.csv")
+			.arg(bestSens).arg(bestSpec).arg(randAttr).arg(numTrees).arg(nodeSize).arg(oob), "OK");
 	}
-	// Load queued volumes
-	else if (!trainingEntriesQueue.isEmpty()) {
-		SingleVolumeTrainingEntry entry = trainingEntriesQueue.at(0);
-		trainingEntriesQueue.remove(0);
 
-		lock.unlock();
+	RFTrainer trainer;
+	trainer.setMTry(randAttr);
+	trainer.setNTrees(numTrees);
+	trainer.setNodeSize(nodeSize);
+	trainer.setOOBratio(oob);
 
-		QVector<vtkSmartPointer<vtkImageData>> nodesImageData;
-		for (size_t i = 0; i < entry.volumes.count(); i++) {
-			vtkSmartPointer<vtkMRMLVolumeNode> node = vtkMRMLVolumeNode::SafeDownCast(entry.volumes.at(i));
-			nodesImageData.append(node->GetImageData());
-		}
-		vtkSmartPointer<vtkMRMLVolumeNode> truth = vtkMRMLVolumeNode::SafeDownCast(entry.truth);
+	qDebug() << "Random attribute number: " << randAttr;
+	qDebug() << "Number of trees: " << numTrees;
+	qDebug() << "Node Size: " << nodeSize;
+	qDebug() << "OOB ratio: " << oob;
 
-		vtkImageData* truthImageData = truth->GetImageData();
-		int dims[3];
-		truthImageData->GetDimensions(dims);
+	qDebug() << "Training";
 
-		int topLimit, botLimit;
-		if (crop) {
-			topLimit = topSlice;
-			botLimit = bottomSlice;
-		}
-		else {
-			topLimit = dims[2];
-			botLimit = 0;
-		}
+	trainer.train(classifier, dataset);
 
-		for (size_t i = 0; i < dims[0]; i++) {
-			for (size_t j = 0; j < dims[1]; j++) {
-				for (size_t k = qMax(botLimit, 0); k < qMin(topLimit, dims[2]); k++) {
-					unsigned int label = truthImageData->GetScalarComponentAsDouble(i, j, k, 0);
+	decisionFunction = (normalizer >> classifier);
 
-					sampleType oneVector(nodesImageData.count());
+	qDebug() << "Finished";
 
-					for (size_t m = 0; m < nodesImageData.count(); m++) {
-						oneVector(m) = nodesImageData.at(m)->GetScalarComponentAsDouble(i, j, k, 0);
-					}
+	//dataset = shark::createLabeledDataFromRange(allSamples, allLabels);
+	//
+	//
+	//std::vector<unsigned int> classifiedResults;
+	//
+	//for (size_t j = 0; j < allSamples.size(); j++) {
+	//	shark::RealVector a;
+	//	decisionFunction.eval(allSamples.at(j), a);
+	//
+	//	int label = 0;
+	//	double max = 0.0;
+	//	for (size_t k = 0; k < a.size(); k++) {
+	//		if (a(k) > max) {
+	//			max = a(k);
+	//			label = k;
+	//		}
+	//	}
+	//	classifiedResults.push_back(label);
+	//}
+	//
+	//QPair<double, double> out = sensSpec(classifiedResults, dataset.labels(), selectedLabels);
+	//qDebug() << "Sensitivity" << out.first << "Specificity" << out.second;
 
-					// Save only labels that are selected, anything else is a negative sample
-					bool found = false;
-					for (size_t m = 0; m < selectedLabels.count(); m++) {
-						if (label == selectedLabels.at(m))
-							found = true;
-					}
-					if (!found)
-						label = 0;
+	dataset = shark::ClassificationDataset();
+	samples.clear();
+	labels.clear();
+}
+void ClassifierSharkRandomForestWorker::processTrainingEntry(const SingleVolumeTrainingEntry& entry)
+{
+	QVector<vtkSmartPointer<vtkImageData>> nodesImageData;
+	for (size_t i = 0; i < entry.volumes.count(); i++) {
+		vtkSmartPointer<vtkMRMLVolumeNode> node = vtkMRMLVolumeNode::SafeDownCast(entry.volumes.at(i));
+		nodesImageData.append(node->GetImageData());
+	}
+	vtkSmartPointer<vtkMRMLVolumeNode> truth = vtkMRMLVolumeNode::SafeDownCast(entry.truth);
 
-					// Get rid of duplicate values
-					bool has = false;
-					for (size_t m = 0; m < samples.size(); m++)
-					{
-						bool equal = true;
-						if (label != labels.at(m))
-							continue;
+	vtkImageData* truthImageData = truth->GetImageData();
+	int dims[3];
+	truthImageData->GetDimensions(dims);
 
-						for (size_t p = 0; p < samples.at(m).size(); p++) {
-							if (samples.at(m)(p) != oneVector(p)) {
-								equal = false;
-								break;
-							}
-						}
-						if (equal) {
-							has = true;
+	int topLimit, botLimit;
+	if (crop) {
+		topLimit = topSlice;
+		botLimit = bottomSlice;
+	}
+	else {
+		topLimit = dims[2];
+		botLimit = 0;
+	}
+
+	for (size_t i = 0; i < dims[0]; i++) {
+		for (size_t j = 0; j < dims[1]; j++) {
+			for (size_t k = qMax(botLimit, 0); k < qMin(topLimit, dims[2]); k++) {
+				unsigned int label = truthImageData->GetScalarComponentAsDouble(i, j, k, 0);
+
+				sampleType oneVector(nodesImageData.count());
+
+				for (size_t m = 0; m < nodesImageData.count(); m++) {
+					oneVector(m) = nodesImageData.at(m)->GetScalarComponentAsDouble(i, j, k, 0);
+				}
+
+				// Save only labels that are selected, anything else is a negative sample
+				bool found = false;
+				for (size_t m = 0; m < selectedLabels.count(); m++) {
+					if (label == selectedLabels.at(m))
+						found = true;
+				}
+				if (!found)
+					label = 0;
+
+				// Get rid of duplicate values
+				bool has = false;
+				for (size_t m = 0; m < samples.size(); m++)
+				{
+					bool equal = true;
+					if (label != labels.at(m))
+						continue;
+
+					for (size_t p = 0; p < samples.at(m).size(); p++) {
+						if (samples.at(m)(p) != oneVector(p)) {
+							equal = false;
 							break;
 						}
 					}
-
-					if (!has) {
-						samples.push_back(oneVector);
-						labels.push_back(label);
+					if (equal) {
+						has = true;
+						break;
 					}
+				}
+
+				if (!has) {
+					samples.push_back(oneVector);
+					labels.push_back(label);
 				}
 			}
 		}
-		//for (size_t i = 0; i < dims[0]; i++) {
-		//	for (size_t j = 0; j < dims[1]; j++) {
-		//		for (size_t k = 85; k < 106; k++) {
-		//			double label = truthImageData->GetScalarComponentAsDouble(i, j, k, 0);
-		//
-		//			sampleType oneVector(nodesImageData.count());
-		//
-		//			for (size_t m = 0; m < nodesImageData.count(); m++) {
-		//				oneVector(m) = nodesImageData.at(m)->GetScalarComponentAsDouble(i, j, k, 0);
-		//			}
-		//			
-		//			bool found = false;
-		//			for (size_t m = 0; m < selectedLabels.count(); m++) {
-		//				if (label == selectedLabels.at(m))
-		//					found = true;
-		//			}
-		//			if (!found)
-		//				label = 0;
-		//			// Get rid of duplicate values
-		//			bool has = false;
-		//			for (size_t m = 0; m < allSamples.size(); m++)
-		//			{
-		//				bool equal = true;
-		//				if (label != allLabels.at(m))
-		//					continue;
-		//
-		//				for (size_t p = 0; p < allSamples.at(m).size(); p++) {
-		//					if (allSamples.at(m)(p) != oneVector(p)) {
-		//						equal = false;
-		//						break;
-		//					}
-		//				}
-		//				if (equal) {
-		//					has = true;
-		//					break;
-		//				}
-		//			}
-		//
-		//			if (!has) {
-		//				allSamples.push_back(oneVector);
-		//				allLabels.push_back(label);
-		//			}
-		//		}
-		//	}
-		//}
 	}
-	// Classify queued volumes
-	else if (!classifyingEntriesQueue.isEmpty()) {
-		int dims[3];
-		vtkMRMLVolumeNode::SafeDownCast(classifyingEntriesQueue.at(0).volumes.at(0))->GetImageData()->GetDimensions(dims);
+	//for (size_t i = 0; i < dims[0]; i++) {
+	//	for (size_t j = 0; j < dims[1]; j++) {
+	//		for (size_t k = 85; k < 106; k++) {
+	//			double label = truthImageData->GetScalarComponentAsDouble(i, j, k, 0);
+	//
+	//			sampleType oneVector(nodesImageData.count());
+	//
+	//			for (size_t m = 0; m < nodesImageData.count(); m++) {
+	//				oneVector(m) = nodesImageData.at(m)->GetScalarComponentAsDouble(i, j, k, 0);
+	//			}
+	//			
+	//			bool found = false;
+	//			for (size_t m = 0; m < selectedLabels.count(); m++) {
+	//				if (label == selectedLabels.at(m))
+	//					found = true;
+	//			}
+	//			if (!found)
+	//				label = 0;
+	//			// Get rid of duplicate values
+	//			bool has = false;
+	//			for (size_t m = 0; m < allSamples.size(); m++)
+	//			{
+	//				bool equal = true;
+	//				if (label != allLabels.at(m))
+	//					continue;
+	//
+	//				for (size_t p = 0; p < allSamples.at(m).size(); p++) {
+	//					if (allSamples.at(m)(p) != oneVector(p)) {
+	//						equal = false;
+	//						break;
+	//					}
+	//				}
+	//				if (equal) {
+	//					has = true;
+	//					break;
+	//				}
+	//			}
+	//
+	//			if (!has) {
+	//				allSamples.push_back(oneVector);
+	//				allLabels.push_back(label);
+	//			}
+	//		}
+	//	}
+	//}
+}
+void ClassifierSharkRandomForestWorker::processClassifyingEntry(const SingleVolumeClassifyingEntry& entry)
+{
+	int dims[3];
+	vtkMRMLVolumeNode::SafeDownCast(entry.volumes.at(0))->GetImageData()->GetDimensions(dims);
 
-		if (classifyCrop) {
-			for (size_t i = qMax(0, classifyBottomSlice); i <= qMin(dims[2], classifyTopSlice); i++) {
-				slicesToClassify.append(i);
-			}
+	if (classifyCrop) {
+		for (size_t i = qMax(0, classifyBottomSlice); i <= qMin(dims[2], classifyTopSlice); i++) {
+			slicesToClassify.append(i);
 		}
-		else {
-			for (size_t i = 0; i < dims[2]; i++) {
-				slicesToClassify.append(i);
-			}
-		}
-
-		std::vector<std::thread> threads;
-		for (size_t i = 0; i < subthreadCount; i++)
-		{
-			threads.emplace_back(&ClassifierSharkRandomForestWorker::classifyThreaded, this);
-		}
-		currentlyClassified = classifyingEntriesQueue.at(0).result;
-		// Start threads
-		mutex->unlock();
-		for (size_t i = 0; i < threads.size(); i++)
-		{
-			threads[i].join();
-		}
-		qDebug() << "Threads joined";
-
-		lock.relock();
-		classifyingEntriesQueue.remove(0);
-		lock.unlock();
-		
-		emit volumeClassified(currentlyClassified);
 	}
+	else {
+		for (size_t i = 0; i < dims[2]; i++) {
+			slicesToClassify.append(i);
+		}
 	}
+
+	std::vector<std::thread> threads;
+	for (size_t i = 0; i < subthreadCount; i++)
+	{
+		threads.emplace_back(&ClassifierSharkRandomForestWorker::classifyThreaded, this, std::cref(entry));
+	}
+	currentlyClassified = entry.result;
+	for (size_t i = 0; i < threads.size(); i++)
+	{
+		threads[i].join();
+	}
+	qDebug() << "Threads joined";
+
+	emit volumeClassified(currentlyClassified);
 }
 
 void ClassifierSharkRandomForestWorker::optimize()
@@ -621,7 +555,7 @@ void ClassifierSharkRandomForestWorker::optimize()
 
 	// Create threads
 
-	mutex->lock();
+	optimizeMutex->lock();
 	std::vector<std::thread> threads;
 	for (size_t i = 0; i < idealThreadCount; i++)
 	{
@@ -629,7 +563,7 @@ void ClassifierSharkRandomForestWorker::optimize()
 	}
 
 	// Start threads
-	mutex->unlock();
+	optimizeMutex->unlock();
 	for (size_t i = 0; i < threads.size(); i++)
 	{
 		threads[i].join();
@@ -640,12 +574,12 @@ void ClassifierSharkRandomForestWorker::optimize()
 void ClassifierSharkRandomForestWorker::optimizeThreaded()
 {
 	using namespace shark;
-	mutex->lock();
+	optimizeMutex->lock();
 	while (!optimizationQueue.isEmpty()) {
 		OptimizationParameterSet set = optimizationQueue.first();
 		optimizationQueue.remove(0);
 
-		mutex->unlock();
+		optimizeMutex->unlock();
 
 		double actSens = 0.0;
 		double actSpec = 0.0;
@@ -693,7 +627,7 @@ void ClassifierSharkRandomForestWorker::optimizeThreaded()
 			}
 		}
 
-		mutex->lock();
+		optimizeMutex->lock();
 		qDebug() << optimizationQueue.count() 
 			<< "Rand Attr: " << QString::number(set.randAttr, 'f', 0)
 			<< "Num Trees: " << QString::number(set.numTrees, 'f', 0)
@@ -724,7 +658,7 @@ void ClassifierSharkRandomForestWorker::optimizeThreaded()
 			emit valuesOptimized(randAttr, numTrees, nodeSize, oob);
 		}
 	}
-	mutex->unlock();
+	optimizeMutex->unlock();
 	qDebug() << "Thread finished";
 }
 
@@ -765,22 +699,18 @@ QPair<double, double> ClassifierSharkRandomForestNamespace::sensSpec(const std::
 
 void ClassifierSharkRandomForestWorker::setCropping(bool crop)
 {
-	QMutexLocker lock(mutex);
 	this->crop = crop;
 }
 void ClassifierSharkRandomForestWorker::setBottomSlice(int bottom)
 {
-	QMutexLocker lock(mutex);
 	bottomSlice = bottom;
 }
 void ClassifierSharkRandomForestWorker::setTopSlice(int top)
 {
-	QMutexLocker lock(mutex);
 	topSlice = top;
 }
 void ClassifierSharkRandomForestWorker::setRandAttr(int randAttr)
 { 
-	QMutexLocker lock(mutex);
 	if (randAttr < 0)
 		randAttr = 0;
 	this->randAttr = randAttr;
@@ -789,150 +719,127 @@ void ClassifierSharkRandomForestWorker::setNumTrees(int numTrees)
 {
 	if (numTrees < 1)
 		numTrees = 1;
-	QMutexLocker lock(mutex);
 	this->numTrees = numTrees;
 }
 void ClassifierSharkRandomForestWorker::setNodeSize(int nodeSize)
 {
 	if (nodeSize < 1)
 		nodeSize = 1;
-	QMutexLocker lock(mutex);
 	this->nodeSize = nodeSize;
 }
 void ClassifierSharkRandomForestWorker::setOob(double oob)
 {
 	if (oob < 0.)
 		oob = 0.;
-	QMutexLocker lock(mutex);
 	this->oob = oob;
 }
 
 void ClassifierSharkRandomForestWorker::setRandAttrLow(int randAttrLow)
 {
-	QMutexLocker lock(mutex);
 	if (randAttrLow < 0)
 		randAttrLow = 0;
 	this->randAttrLow = randAttrLow;
 }
 void ClassifierSharkRandomForestWorker::setNumTreesLow(int numTreesLow)
 {
-	QMutexLocker lock(mutex);
 	if (numTreesLow < 1)
 		numTreesLow = 1;
 	this->numTreesLow = numTreesLow;
 }
 void ClassifierSharkRandomForestWorker::setNodeSizeLow(int nodeSizeLow)
 { 
-	QMutexLocker lock(mutex);
 	if (nodeSizeLow < 1)
 		nodeSizeLow = 1;
 	this->nodeSizeLow = nodeSizeLow;
 }
 void ClassifierSharkRandomForestWorker::setOobLow(double oobLow)
 { 
-	QMutexLocker lock(mutex);
 	if (oobLow < 0.)
 		oobLow = 0.;
 	this->oobLow = oobLow;
 }
 void ClassifierSharkRandomForestWorker::setRandAttrHigh(int randAttrHigh)
 {
-	QMutexLocker lock(mutex);
 	if (randAttrHigh < 0)
 		randAttrHigh = 0;
 	this->randAttrHigh = randAttrHigh;
 }
 void ClassifierSharkRandomForestWorker::setNumTreesHigh(int numTreesHigh)
 {
-	QMutexLocker lock(mutex);
 	if (numTreesHigh < 1)
 		numTreesHigh = 1;
 	this->numTreesHigh = numTreesHigh;
 }
 void ClassifierSharkRandomForestWorker::setNodeSizeHigh(int nodeSizeHigh)
 {
-	QMutexLocker lock(mutex);
 	if (nodeSizeHigh < 1)
 		nodeSizeHigh = 1;
 	this->nodeSizeHigh = nodeSizeHigh;
 }
 void ClassifierSharkRandomForestWorker::setOobHigh(double oobHigh)
 {
-	QMutexLocker lock(mutex);
 	if (oobHigh < 0.)
 		oobHigh = 0.;
 	this->oobHigh = oobHigh;
 }
 void ClassifierSharkRandomForestWorker::setRandAttrSteps(int randAttrSteps)
 {
-	QMutexLocker lock(mutex);
 	if (randAttrSteps < 1)
 		randAttrSteps = 1;
 	this->randAttrSteps = randAttrSteps;
 }
 void ClassifierSharkRandomForestWorker::setNumTreesSteps(int numTreesSteps)
 { 
-	QMutexLocker lock(mutex);
 	if (numTreesSteps < 1)
 		numTreesSteps = 1;
 	this->numTreesSteps = numTreesSteps;
 }
 void ClassifierSharkRandomForestWorker::setNodeSizeSteps(int nodeSizeSteps)
 {
-	QMutexLocker lock(mutex);
 	if (nodeSizeSteps < 1)
 		nodeSizeSteps = 1;
 	this->nodeSizeSteps = nodeSizeSteps;
 }
 void ClassifierSharkRandomForestWorker::setOobSteps(int oobSteps)
 {
-	QMutexLocker lock(mutex);
 	if (oobSteps < 1)
 		oobSteps = 1;
 	this->oobSteps = oobSteps;
 }
 void ClassifierSharkRandomForestWorker::setClassifyCropping(bool crop)
 {
-	QMutexLocker lock(mutex);
 	this->classifyCrop = crop;
 }
 void ClassifierSharkRandomForestWorker::setClassifyBottomSlice(int bottom)
 {
-	QMutexLocker lock(mutex);
 	classifyBottomSlice = bottom;
 }
 void ClassifierSharkRandomForestWorker::setClassifyTopSlice(int top)
 {
-	QMutexLocker lock(mutex);
 	classifyTopSlice = top;
 }
 
 void ClassifierSharkRandomForestWorker::selectLabels(const QVector<unsigned int>& labels)
 {
-	QMutexLocker lock(mutex);
 	selectedLabels = labels;
 }
 
-void ClassifierSharkRandomForestWorker::classifyThreaded()
+void ClassifierSharkRandomForestWorker::classifyThreaded(const SingleVolumeClassifyingEntry& entry)
 {
-	QMutexLocker lock(mutex);
-	lock.unlock();
-
 	QVector<vtkSmartPointer<vtkImageData>> nodesImageData;
-	for (size_t i = 0; i < classifyingEntriesQueue.at(0).volumes.count(); i++) {
-		vtkSmartPointer<vtkMRMLVolumeNode> node = vtkMRMLVolumeNode::SafeDownCast(classifyingEntriesQueue.at(0).volumes.at(i));
+	for (size_t i = 0; i < entry.volumes.count(); i++) {
+		vtkSmartPointer<vtkMRMLVolumeNode> node = vtkMRMLVolumeNode::SafeDownCast(entry.volumes.at(i));
 		nodesImageData.append(node->GetImageData());
 	}
 
-	lock.relock();
-
+	QMutexLocker lock(classifyMutex);
 	while (!slicesToClassify.isEmpty()) {
 
 		size_t k = slicesToClassify.first();
 		slicesToClassify.remove(0);
 		lock.unlock();
 
-		vtkSmartPointer<vtkMRMLVolumeNode> resultNode = vtkMRMLVolumeNode::SafeDownCast(classifyingEntriesQueue.at(0).result);
+		vtkSmartPointer<vtkMRMLVolumeNode> resultNode = vtkMRMLVolumeNode::SafeDownCast(entry.result);
 
 		vtkSmartPointer<vtkImageData> resultImageData = resultNode->GetImageData();
 		int dims[3];

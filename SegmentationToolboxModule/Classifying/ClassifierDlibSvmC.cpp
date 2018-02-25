@@ -74,7 +74,7 @@ ClassifierDlibSvmC::ClassifierDlibSvmC()
 }
 ClassifierDlibSvmC::~ClassifierDlibSvmC()
 {
-	worker->deleteLater();
+	delete worker;
 }
 void ClassifierDlibSvmC::thresholdValueChanged()
 {
@@ -110,6 +110,11 @@ bool ClassifierDlibSvmC::deserialize(const QByteArray & serializedClassifier)
 	file.close();
 	dlib::deserialize("tempLoad.dat") >> worker->decisionFunction;
 	file.remove();
+
+	if (worker->decisionFunction.function.basis_vectors.nr() == 0) {
+		qDebug("ClassifierDlibSvmNu::The classifier could not be loaded");
+		return false;
+	}
 
 	return true;
 }
@@ -195,311 +200,246 @@ void ClassifierDlibSvmC::startTraining()
 
 	worker->setGamma(ui.gamma->text().toDouble());
 	worker->setC(ui.c->text().toDouble());
-	worker->train();
+	worker->startTraining();
 }
 
 ClassifierDlibSvmCWorker::ClassifierDlibSvmCWorker()
-	: QThread(), mutex(new QMutex()),
-	waitCondition(new QWaitCondition()), readyToTrain(false),
+	: SupervisedClassifierWorker(),
 	autoOptimize(false)
 {
+	classifyMutex = new QMutex;
+	optimizeMutex = new QMutex;
 	subthreadCount = qMax<int>(QThread::idealThreadCount() - 1, 4);
 }
 
 ClassifierDlibSvmCWorker::~ClassifierDlibSvmCWorker()
 {
-	delete mutex;
-	delete waitCondition;
-	exit();
-}
-
-funct_type ClassifierDlibSvmCWorker::getDecisionFunction()
-{
-	return this->decisionFunction;
-}
-
-void ClassifierDlibSvmCWorker::appendToTrainingQueue(const QVector<vtkSmartPointer<vtkMRMLNode>>& volumes, const vtkSmartPointer<vtkMRMLNode> truth)
-{
-	QMutexLocker lock(mutex);
-
-	SingleVolumeTrainingEntry entry;
-	entry.truth = truth;
-	entry.volumes = volumes;
-	trainingEntriesQueue.append(entry);
-
-	waitCondition->wakeAll();
-}
-
-void ClassifierDlibSvmCWorker::appendToClassifyingQueue(const QVector<vtkSmartPointer<vtkMRMLNode>>& volumes, vtkSmartPointer<vtkMRMLNode> result)
-{
-	QMutexLocker lock(mutex);
-
-	if (decisionFunction.function.basis_vectors.size() == 0) {
-		QMessageBox::warning(qSlicerApplication::activeWindow(), "No decision function", "This classifier is currently untrained. Aborting.");
-		return;
-	}
-
-	SingleVolumeClassifyingEntry entry;
-	entry.result = result;
-	entry.volumes = volumes;
-	classifyingEntriesQueue.append(entry);
-
-	waitCondition->wakeAll();
-}
-
-void ClassifierDlibSvmCWorker::train()
-{
-	QMutexLocker lock(mutex);
-	readyToTrain = true;
-
-	waitCondition->wakeAll();
+	delete classifyMutex;
+	delete optimizeMutex;
 }
 
 void ClassifierDlibSvmCWorker::setOptimization(bool state)
 {
-	QMutexLocker lock(mutex);
 	autoOptimize = state;
 }
 
-void ClassifierDlibSvmCWorker::run()
+void ClassifierDlibSvmCWorker::processTraining()
 {
-	forever{
-	QMutexLocker lock(mutex);
-	// Train when all training volumes have been loaded and train function has been called
-	if (trainingEntriesQueue.isEmpty() && classifyingEntriesQueue.isEmpty()) {
-		if (readyToTrain) {
-			dlib::vector_normalizer<sample_type> normalizer;
-			// let the normalizer learn the mean and standard deviation of the samples
-			normalizer.train(samples);
-			// now normalize each sample
-			for (unsigned long i = 0; i < samples.size(); ++i)
-				samples[i] = normalizer(samples[i]);
+	dlib::vector_normalizer<sample_type> normalizer;
+	// let the normalizer learn the mean and standard deviation of the samples
+	normalizer.train(samples);
+	// now normalize each sample
+	for (unsigned long i = 0; i < samples.size(); ++i)
+		samples[i] = normalizer(samples[i]);
 
-			qDebug() << "Samples: " << samples.size();
+	qDebug() << "Samples: " << samples.size();
 
-			if (autoOptimize) {
-				optimize();
-				emit infoMessageBoxRequest("Optimization finished",
-					QString("Maximum sensitivity: %1"
-						"\nMaximum specificity: %2"
-						"\nGamma: %3"
-						"\nC: %4 "
-						"\nCSV file with all results is in <Slicer root>\\DlibSvmC.csv")
-					.arg(bestSens).arg(bestSpec).arg(gamma).arg(c), "OK");
-			}
-
-
-			dlib::svm_c_trainer<kernel_type> trainer;
-
-			qDebug() << "Setting gamma";
-			trainer.set_kernel(kernel_type(gamma));
-			qDebug() << "Setting c";
-			trainer.set_c(c);
-
-			qDebug() << "Gamma: " << gamma;
-			qDebug() << "C: " << c;
-
-			qDebug() << "Setting normalizer";
-			decisionFunction.normalizer = normalizer;  // save normalization information
-			qDebug() << "Training";
-			decisionFunction.function = trainer.train(samples, labels); // perform the actual SVM training and save the results
-
-			qDebug() << "Finished";
-
-			//std::vector<int> classifiedResults;
-			//
-			//for (size_t j = 0; j < allSamples.size(); j++) {
-			//	double a = decisionFunction(allSamples.at(j));
-			//	int classified;
-			//	if (a > 0.3)
-			//		classified = 1.0;
-			//	else
-			//		classified = -1.0;
-			//	classifiedResults.push_back(classified);
-			//}
-			//
-			//QPair<double, double> out = sensSpec(classifiedResults, allLabels);
-			//qDebug() << "Sensitivity" << out.first << "Specificity" << out.second;
-
-			emit classifierTrained();
-			samples.clear();
-			labels.clear();
-			//allSamples.clear();
-			//allLabels.clear();
-		}
-		waitCondition->wait(mutex);
-		lock.unlock();
+	if (autoOptimize) {
+		optimize();
+		emit infoMessageBoxRequest("Optimization finished",
+			QString("Maximum sensitivity: %1"
+				"\nMaximum specificity: %2"
+				"\nGamma: %3"
+				"\nC: %4 "
+				"\nCSV file with all results is in <Slicer root>\\DlibSvmC.csv")
+			.arg(bestSens).arg(bestSpec).arg(gamma).arg(c), "OK");
 	}
-	// Load queued volumes
-	else if (!trainingEntriesQueue.isEmpty()) {
-		SingleVolumeTrainingEntry entry = trainingEntriesQueue.at(0);
-		trainingEntriesQueue.remove(0);
 
-		lock.unlock();
 
-		QVector<vtkSmartPointer<vtkImageData>> nodesImageData;
-		for (size_t i = 0; i < entry.volumes.count(); i++) {
-			vtkSmartPointer<vtkMRMLVolumeNode> node = vtkMRMLVolumeNode::SafeDownCast(entry.volumes.at(i));
-			nodesImageData.append(node->GetImageData());
-		}
-		vtkSmartPointer<vtkMRMLVolumeNode> truth = vtkMRMLVolumeNode::SafeDownCast(entry.truth);
+	dlib::svm_c_trainer<kernel_type> trainer;
 
-		vtkImageData* truthImageData = truth->GetImageData();
-		int dims[3];
-		truthImageData->GetDimensions(dims);
+	qDebug() << "Setting gamma";
+	trainer.set_kernel(kernel_type(gamma));
+	qDebug() << "Setting c";
+	trainer.set_c(c);
 
-		int topLimit, botLimit;
-		if (crop) {
-			topLimit = topSlice;
-			botLimit = bottomSlice;
-		}
-		else {
-			topLimit = dims[2];
-			botLimit = 0;
-		}
+	qDebug() << "Gamma: " << gamma;
+	qDebug() << "C: " << c;
 
-		for (size_t i = 0; i < dims[0]; i++) {
-			for (size_t j = 0; j < dims[1]; j++) {
-				for (size_t k = qMax(botLimit, 0); k < qMin(topLimit, dims[2]); k++) {
-					double label = truthImageData->GetScalarComponentAsDouble(i, j, k, 0);
+	qDebug() << "Setting normalizer";
+	decisionFunction.normalizer = normalizer;  // save normalization information
+	qDebug() << "Training";
+	decisionFunction.function = trainer.train(samples, labels); // perform the actual SVM training and save the results
 
-					sample_type oneVector(nodesImageData.count());
-					oneVector.set_size(nodesImageData.count());
+	qDebug() << "Finished";
 
-					for (size_t m = 0; m < nodesImageData.count(); m++) {
-						oneVector(m) = nodesImageData.at(m)->GetScalarComponentAsDouble(i, j, k, 0);
+	//std::vector<int> classifiedResults;
+	//
+	//for (size_t j = 0; j < allSamples.size(); j++) {
+	//	double a = decisionFunction(allSamples.at(j));
+	//	int classified;
+	//	if (a > 0.3)
+	//		classified = 1.0;
+	//	else
+	//		classified = -1.0;
+	//	classifiedResults.push_back(classified);
+	//}
+	//
+	//QPair<double, double> out = sensSpec(classifiedResults, allLabels);
+	//qDebug() << "Sensitivity" << out.first << "Specificity" << out.second;
+
+	samples.clear();
+	labels.clear();
+	//allSamples.clear();
+	//allLabels.clear();
+}
+void ClassifierDlibSvmCWorker::processTrainingEntry(const SingleVolumeTrainingEntry& entry)
+{
+	QVector<vtkSmartPointer<vtkImageData>> nodesImageData;
+	for (size_t i = 0; i < entry.volumes.count(); i++) {
+		vtkSmartPointer<vtkMRMLVolumeNode> node = vtkMRMLVolumeNode::SafeDownCast(entry.volumes.at(i));
+		nodesImageData.append(node->GetImageData());
+	}
+	vtkSmartPointer<vtkMRMLVolumeNode> truth = vtkMRMLVolumeNode::SafeDownCast(entry.truth);
+
+	vtkImageData* truthImageData = truth->GetImageData();
+	int dims[3];
+	truthImageData->GetDimensions(dims);
+
+	int topLimit, botLimit;
+	if (crop) {
+		topLimit = topSlice;
+		botLimit = bottomSlice;
+	}
+	else {
+		topLimit = dims[2];
+		botLimit = 0;
+	}
+
+	for (size_t i = 0; i < dims[0]; i++) {
+		for (size_t j = 0; j < dims[1]; j++) {
+			for (size_t k = qMax(botLimit, 0); k < qMin(topLimit, dims[2]); k++) {
+				double label = truthImageData->GetScalarComponentAsDouble(i, j, k, 0);
+
+				sample_type oneVector(nodesImageData.count());
+				oneVector.set_size(nodesImageData.count());
+
+				for (size_t m = 0; m < nodesImageData.count(); m++) {
+					oneVector(m) = nodesImageData.at(m)->GetScalarComponentAsDouble(i, j, k, 0);
+				}
+
+				// Save only label that is selected, anything else is a negative sample
+				if (label == selectedLabel) {
+					label = 1;
+				}
+				else {
+					label = -1;
+				}
+
+				// Get rid of duplicate values
+				bool has = false;
+				for (size_t m = 0; m < samples.size(); m++)
+				{
+					if (label != labels.at(m))
+						continue;
+					if (samples.at(m) == oneVector) {
+						has = true;
+						break;
 					}
-
-					// Save only label that is selected, anything else is a negative sample
-					if (label == selectedLabel) {
-						label = 1;
-					}
-					else {
-						label = -1;
-					}
-
-					// Get rid of duplicate values
-					bool has = false;
-					for (size_t m = 0; m < samples.size(); m++)
-					{
-						if (label != labels.at(m))
-							continue;
-						if (samples.at(m) == oneVector) {
-							has = true;
-							break;
-						}
-					}
-					if (!has) {
-						samples.push_back(oneVector);
-						labels.push_back(label);
-					}
+				}
+				if (!has) {
+					samples.push_back(oneVector);
+					labels.push_back(label);
 				}
 			}
 		}
-		//for (size_t i = 0; i < dims[0]; i++) {
-		//	for (size_t j = 0; j < dims[1]; j++) {
-		//		for (size_t k = 85; k < 106; k++) {
-		//			double label = truthImageData->GetScalarComponentAsDouble(i, j, k, 0);
-		//
-		//			sample_type oneVector(nodesImageData.count());
-		//			oneVector.set_size(nodesImageData.count());
-		//
-		//			for (size_t m = 0; m < nodesImageData.count(); m++) {
-		//				oneVector(m) = nodesImageData.at(m)->GetScalarComponentAsDouble(i, j, k, 0);
-		//			}
-		//			if (label == selectedLabel) {
-		//				label = 1;
-		//			}
-		//			else {
-		//				label = -1;
-		//			}
-		//
-		//			bool has = false;
-		//			for (size_t m = 0; m < allSamples.size(); m++)
-		//			{
-		//				if (label != allLabels.at(m))
-		//					continue;
-		//				if (allSamples.at(m) == oneVector) {
-		//					has = true;
-		//					break;
-		//				}
-		//			}
-		//			if (!has) {
-		//				allSamples.push_back(oneVector);
-		//				allLabels.push_back(qRound(label) == 1 ? 1 : -1);
-		//			}
-		//		}
-		//	}
-		//}
 	}
-	// Classify queued volumes
-	else if (!classifyingEntriesQueue.isEmpty()) {
-		int dims[3];
-		vtkMRMLVolumeNode::SafeDownCast(classifyingEntriesQueue.at(0).volumes.at(0))->GetImageData()->GetDimensions(dims);
-
-		if (classifyCrop) {
-			for (size_t i = qMax(0, classifyBottomSlice); i <= qMin(dims[2], classifyTopSlice); i++) {
-				slicesToClassify.append(i);
-			}
-		}
-		else {
-			for (size_t i = 0; i < dims[2]; i++) {
-				slicesToClassify.append(i);
-			}
-		}
-
-		std::vector<std::thread> threads;
-		currentlyClassified = classifyingEntriesQueue.at(0).result;
-		for (size_t i = 0; i < subthreadCount; i++)
-		{
-			threads.emplace_back(&ClassifierDlibSvmCWorker::classifyThreaded, this);
-		}
-		// Start threads
-		mutex->unlock();
-		for (size_t i = 0; i < threads.size(); i++)
-		{
-			threads[i].join();
-		}
-		qDebug() << "Threads joined";
-
-		lock.relock();
-		classifyingEntriesQueue.remove(0);
-		lock.unlock();
-
-		emit volumeClassified(currentlyClassified);
-	}
-	}
+	//for (size_t i = 0; i < dims[0]; i++) {
+	//	for (size_t j = 0; j < dims[1]; j++) {
+	//		for (size_t k = 85; k < 106; k++) {
+	//			double label = truthImageData->GetScalarComponentAsDouble(i, j, k, 0);
+	//
+	//			sample_type oneVector(nodesImageData.count());
+	//			oneVector.set_size(nodesImageData.count());
+	//
+	//			for (size_t m = 0; m < nodesImageData.count(); m++) {
+	//				oneVector(m) = nodesImageData.at(m)->GetScalarComponentAsDouble(i, j, k, 0);
+	//			}
+	//			if (label == selectedLabel) {
+	//				label = 1;
+	//			}
+	//			else {
+	//				label = -1;
+	//			}
+	//
+	//			bool has = false;
+	//			for (size_t m = 0; m < allSamples.size(); m++)
+	//			{
+	//				if (label != allLabels.at(m))
+	//					continue;
+	//				if (allSamples.at(m) == oneVector) {
+	//					has = true;
+	//					break;
+	//				}
+	//			}
+	//			if (!has) {
+	//				allSamples.push_back(oneVector);
+	//				allLabels.push_back(qRound(label) == 1 ? 1 : -1);
+	//			}
+	//		}
+	//	}
+	//}
 }
-QPair<double, double> ClassifierDlibSvmCNamespace::sensSpec(const std::vector<int>& classified, const std::vector<int>& truth)
+void ClassifierDlibSvmCWorker::processClassifyingEntry(const SingleVolumeClassifyingEntry& entry)
 {
-	QPair<double, double> out(0.0, 0.0);
-	int TP = 0;
-	int TN = 0;
-	int FP = 0;
-	int FN = 0;
+	int dims[3];
+	vtkMRMLVolumeNode::SafeDownCast(entry.volumes.at(0))->GetImageData()->GetDimensions(dims);
 
-	for (size_t i = 0; i < classified.size(); i++) {
-		if (truth.at(i) == classified.at(i)) {
-			if (classified.at(i) == 1)
-				TP++;
-			else
-				TN++;
+	if (classifyCrop) {
+		for (size_t i = qMax(0, classifyBottomSlice); i <= qMin(dims[2], classifyTopSlice); i++) {
+			slicesToClassify.append(i);
 		}
-		else {
-			if (classified.at(i) == -1)
-				FP++;
-			else
-				FN++;
+	}
+	else {
+		for (size_t i = 0; i < dims[2]; i++) {
+			slicesToClassify.append(i);
 		}
 	}
 
-	double sensitivity = double(TP) / double(TP + FN);
-	double specificity = double(TN) / double(TN + FP);
+	std::vector<std::thread> threads;
+	currentlyClassified = entry.result;
+	for (size_t i = 0; i < subthreadCount; i++)
+	{
+		threads.emplace_back(&ClassifierDlibSvmCWorker::classifyThreaded, this, std::cref(entry));
+	}
+	for (size_t i = 0; i < threads.size(); i++)
+	{
+		threads[i].join();
+	}
+	qDebug() << "Threads joined";
 
-	out.first += sensitivity;
-	out.second += specificity;
-	return out;
+	emit volumeClassified(currentlyClassified);
 }
+//QPair<double, double> ClassifierDlibSvmCNamespace::sensSpec(const std::vector<int>& classified, const std::vector<int>& truth)
+//{
+//	QPair<double, double> out(0.0, 0.0);
+//	int TP = 0;
+//	int TN = 0;
+//	int FP = 0;
+//	int FN = 0;
+//
+//	for (size_t i = 0; i < classified.size(); i++) {
+//		if (truth.at(i) == classified.at(i)) {
+//			if (classified.at(i) == 1)
+//				TP++;
+//			else
+//				TN++;
+//		}
+//		else {
+//			if (classified.at(i) == -1)
+//				FP++;
+//			else
+//				FN++;
+//		}
+//	}
+//
+//	double sensitivity = double(TP) / double(TP + FN);
+//	double specificity = double(TN) / double(TN + FP);
+//
+//	out.first += sensitivity;
+//	out.second += specificity;
+//	return out;
+//}
 
 void ClassifierDlibSvmCWorker::optimize()
 {
@@ -534,7 +474,6 @@ void ClassifierDlibSvmCWorker::optimize()
 	{
 		threads.emplace_back(&ClassifierDlibSvmCWorker::optimizeThreaded, this);
 	}
-	mutex->unlock();
 	for (size_t i = 0; i < threads.size(); i++)
 	{
 		threads[i].join();
@@ -544,13 +483,13 @@ void ClassifierDlibSvmCWorker::optimize()
 
 void ClassifierDlibSvmCWorker::optimizeThreaded()
 {
-	mutex->lock();
+	optimizeMutex->lock();
 	while (!gammas.isEmpty()) {
 		double testGamma = gammas.at(0);
 		gammas.remove(0);
 		double testC = cs.at(0);
 		cs.remove(0);
-		mutex->unlock();
+		optimizeMutex->unlock();
 		dlib::svm_c_trainer<kernel_type> trainer;
 		trainer.set_kernel(kernel_type(testGamma));
 		trainer.set_c(testC);
@@ -558,7 +497,7 @@ void ClassifierDlibSvmCWorker::optimizeThreaded()
 		dlib::matrix<double, 1L, 2L> mat = dlib::cross_validate_trainer(trainer, samples, labels, 5);
 		double actSens = mat(0);
 		double actSpec = mat(1);
-		mutex->lock();
+		optimizeMutex->lock();
 		qDebug() << gammas.count() << "Gamma: " << QString::number(testGamma, 'f', 6) << "C: " << QString::number(testC, 'f', 6) << "Sensitivity:" << QString::number(mat(0), 'f', 6) << "Specificity:" << QString::number(mat(1), 'f', 6);
 
 		QFile file("DlibSvmC.csv");
@@ -579,114 +518,95 @@ void ClassifierDlibSvmCWorker::optimizeThreaded()
 			emit valuesOptimized(gamma, c, actSpec, actSens);
 		}
 	}
-	mutex->unlock();
+	optimizeMutex->unlock();
 	qDebug() << "Thread finished";
 }
 
 void ClassifierDlibSvmCWorker::setGamma(double gamma)
 {
-	QMutexLocker lock(mutex);
 	this->gamma = gamma;
 }
-
 void ClassifierDlibSvmCWorker::setC(double c)
 {
-	QMutexLocker lock(mutex);
 	this->c = c;
 }
 void ClassifierDlibSvmCWorker::setLabel(int label)
 {
-	QMutexLocker lock(mutex);
 	selectedLabel = label;
 }
 void ClassifierDlibSvmCWorker::setCropping(bool crop)
 {
-	QMutexLocker lock(mutex);
 	this->crop = crop;
 }
 void ClassifierDlibSvmCWorker::setBottomSlice(int bottom)
 {
-	QMutexLocker lock(mutex);
 	bottomSlice = bottom;
 }
 void ClassifierDlibSvmCWorker::setTopSlice(int top)
 {
-	QMutexLocker lock(mutex);
 	topSlice = top;
 }
 void ClassifierDlibSvmCWorker::setCLow(double cLow)
 {
-	QMutexLocker lock(mutex);
 	this->cLow = cLow;
 }
 void ClassifierDlibSvmCWorker::setCHigh(double cHigh)
 {
-	QMutexLocker lock(mutex);
 	this->cHigh = cHigh;
 }
 void ClassifierDlibSvmCWorker::setCSteps(int cSteps)
 {
-	QMutexLocker lock(mutex);
 	this->cSteps = cSteps;
 }
 void ClassifierDlibSvmCWorker::setGammaLow(double gammaLow)
 {
-	QMutexLocker lock(mutex);
 	this->gammaLow = gammaLow;
 }
 void ClassifierDlibSvmCWorker::setGammaHigh(double gammaHigh)
 {
-	QMutexLocker lock(mutex);
 	this->gammaHigh = gammaHigh;
 }
 void ClassifierDlibSvmCWorker::setGammaSteps(int gammaSteps)
 {
-	QMutexLocker lock(mutex);
 	this->gammaSteps = gammaSteps;
 }
 void ClassifierDlibSvmCWorker::setClassifyCropping(bool crop)
 {
-	QMutexLocker lock(mutex);
 	this->classifyCrop = crop;
 }
 void ClassifierDlibSvmCWorker::setClassifyBottomSlice(int bottom)
 {
-	QMutexLocker lock(mutex);
 	classifyBottomSlice = bottom;
 }
 void ClassifierDlibSvmCWorker::setClassifyTopSlice(int top)
 {
-	QMutexLocker lock(mutex);
 	classifyTopSlice = top;
 }
 void ClassifierDlibSvmCWorker::setThreshold(double threshold)
 {
-	QMutexLocker lock(mutex);
 	this->threshold = threshold;
 }
 
-void ClassifierDlibSvmCWorker::classifyThreaded()
+void ClassifierDlibSvmCWorker::classifyThreaded(const SingleVolumeClassifyingEntry& entry)
 {
-	QMutexLocker lock(mutex);
-	lock.unlock();
-
 	QVector<vtkSmartPointer<vtkImageData>> nodesImageData;
-	for (size_t i = 0; i < classifyingEntriesQueue.at(0).volumes.count(); i++) {
-		vtkSmartPointer<vtkMRMLVolumeNode> node = vtkMRMLVolumeNode::SafeDownCast(classifyingEntriesQueue.at(0).volumes.at(i));
+	for (size_t i = 0; i < entry.volumes.count(); i++) {
+		vtkSmartPointer<vtkMRMLVolumeNode> node = vtkMRMLVolumeNode::SafeDownCast(entry.volumes.at(i));
 		nodesImageData.append(node->GetImageData());
 	}
 
-	lock.relock();
+	QMutexLocker lock(classifyMutex);
+	// For some reason, dlib's decision functions' classification is not thread-safe 
+	funct_type decFun = decisionFunction;
 
 	while (!slicesToClassify.isEmpty()) {
 
 		size_t k = slicesToClassify.first();
 		slicesToClassify.remove(0);
-		// For some reason, dlib's decision functions' classification is not thread-safe 
-		funct_type decFun = decisionFunction;
+
 		lock.unlock();
 
-		vtkSmartPointer<vtkMRMLVolumeNode> resultNode = vtkMRMLVolumeNode::SafeDownCast(classifyingEntriesQueue.at(0).result);
+		vtkSmartPointer<vtkMRMLVolumeNode> resultNode = vtkMRMLVolumeNode::SafeDownCast(entry.result);
 
 		vtkSmartPointer<vtkImageData> resultImageData = resultNode->GetImageData();
 		int dims[3];

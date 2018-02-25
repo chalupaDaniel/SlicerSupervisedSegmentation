@@ -13,6 +13,8 @@ include_directories("../Preprocessing")
 set(SRC_CLASSIFY
   ../Classifying/SupervisedClassifier.cpp
   ../Classifying/SupervisedClassifier.h
+  ../Classifying/SupervisedClassifierWorker.cpp
+  ../Classifying/SupervisedClassifierWorker.h
   ../Classifying/ClassifierList.cpp
   ../Classifying/ClassifierList.h
   ../Classifying/ClassifierDlibSvmNu.cpp
@@ -64,6 +66,7 @@ set(${KIT}_MOC_SRCS
   ../Preprocessing/PreprocessingSobelOperator.h
   ../Preprocessing/PreprocessingGaussFilter.h
   ../Classifying/SupervisedClassifier.h
+  ../Classifying/SupervisedClassifierWorker.h
   ../Classifying/ClassifierDlibSvmNu.h
   ../Classifying/ClassifierDlibSvmC.h
   ../Classifying/ClassifierSharkSvmC.h

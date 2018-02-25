@@ -170,6 +170,8 @@ void SegmentationToolboxTrainingWidget::saveRequested()
 
 	for (size_t i = 0; i < filepathsList.count(); i++)
 	{
+		b64.clear();
+
 		QDomElement preprocessing = doc.createElement("preprocessing");
 		QDomElement preprocessingSettings = doc.createElement("settings");
 		preprocessingSettings.setAttribute("format", "Base64");

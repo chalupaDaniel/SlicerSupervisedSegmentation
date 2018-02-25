@@ -7,10 +7,11 @@ project(SegmentationToolbox)
 set(EXTENSION_HOMEPAGE "https://github.com/chalupaDaniel/slicerSupervisedSegmentation")
 set(EXTENSION_CATEGORY "Segmentation")
 set(EXTENSION_CONTRIBUTORS "Daniel Chalupa")
-set(EXTENSION_DESCRIPTION "This is an example of a simple extension")
-set(EXTENSION_ICONURL "http://www.example.com/Slicer/Extensions/SegmentationToolbox.png")
-set(EXTENSION_SCREENSHOTURLS "http://www.example.com/Slicer/Extensions/SegmentationToolbox/Screenshots/1.png")
+set(EXTENSION_DESCRIPTION "This module allows using machine learning to segment preprocessed images using one of the included algorithms.")
+set(EXTENSION_ICONURL "https://github.com/chalupaDaniel/slicerSupervisedSegmentation/blob/master/SegmentationToolbox.png")
+set(EXTENSION_SCREENSHOTURLS "")
 set(EXTENSION_DEPENDS "NA") # Specified as a space separated string, a list or 'NA' if any
+set(EXTENSION_STATUS "Work in progress")
 
 #-----------------------------------------------------------------------------
 # Extension dependencies

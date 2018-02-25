@@ -62,13 +62,13 @@ qSlicerSegmentationToolboxModuleModule::~qSlicerSegmentationToolboxModuleModule(
 //-----------------------------------------------------------------------------
 QString qSlicerSegmentationToolboxModuleModule::helpText() const
 {
-  return "This is a loadable module that can be bundled in an extension";
+  return "This module allows using machine learning to segment preprocessed images using one of the included algorithms.";
 }
 
 //-----------------------------------------------------------------------------
 QString qSlicerSegmentationToolboxModuleModule::acknowledgementText() const
 {
-  return "This work was partially funded by NIH grant NXNNXXNNNNNN-NNXN";
+  return "";
 }
 
 //-----------------------------------------------------------------------------

@@ -2,6 +2,7 @@
 #define CLASSIFIER_SHARK_SVM_C_H
 
 #include "SupervisedClassifier.h"
+#include "SupervisedClassifierWorker.h"
 #include "ui_ClassifierSharkSvmCTrain.h"
 #include "ui_ClassifierSharkSvmCClassify.h"
 
@@ -13,7 +14,6 @@
 #include <QThread>
 #include <vector>
 
-class QWaitCondition;
 class QMutex;
 namespace ClassifierSharkSvmCNamespace
 {
@@ -24,30 +24,12 @@ namespace ClassifierSharkSvmCNamespace
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////
 	///
-	/// SingleVolumeEntry
-	/// - structure representing all volumes that the classifier trains in one go
-	/// - used for saving training vectors from volumes in VolumeReadingThread
-	///
-	///////////////////////////////////////////////////////////////////////////////////////////////////
-	struct SingleVolumeTrainingEntry
-	{
-		QVector<vtkSmartPointer<vtkMRMLNode>> volumes;
-		vtkSmartPointer<vtkMRMLNode> truth;
-	};
-	struct SingleVolumeClassifyingEntry
-	{
-		QVector<vtkSmartPointer<vtkMRMLNode>> volumes;
-		vtkSmartPointer<vtkMRMLNode> result;
-	};
-
-	///////////////////////////////////////////////////////////////////////////////////////////////////
-	///
 	/// ClassifierSharkSvmCWorker
 	/// - run-method thread used by ClassifierDlibSvm
 	/// - used for saving training vectors from volumes, optimizing classifier's parameters and classification
 	///
 	///////////////////////////////////////////////////////////////////////////////////////////////////
-	class ClassifierSharkSvmCWorker : public QThread
+	class ClassifierSharkSvmCWorker : public SupervisedClassifierWorker
 	{
 		Q_OBJECT
 	public:
@@ -55,10 +37,6 @@ namespace ClassifierSharkSvmCNamespace
 		~ClassifierSharkSvmCWorker();
 
 		funct_type getDecisionFunction();
-
-		void appendToTrainingQueue(const QVector<vtkSmartPointer<vtkMRMLNode>>& volumes, const vtkSmartPointer<vtkMRMLNode> truth);
-		void appendToClassifyingQueue(const QVector<vtkSmartPointer<vtkMRMLNode>>& volumes, vtkSmartPointer<vtkMRMLNode> result);
-		void run();
 
 		// Training settings
 
@@ -88,32 +66,24 @@ namespace ClassifierSharkSvmCNamespace
 		shark::Normalizer<sample_type> normalizer;
 		kernel_type kernel;
 
-	public slots:
-		void train();
-
 	signals:
-		void classifierTrained();
 		void volumeClassified(vtkSmartPointer<vtkMRMLNode> result);
 		void valuesOptimized(double gamma, double c);
 		void infoMessageBoxRequest(const QString& title, const QString& text, const QString& button);
 
 	private:
+		void processTraining() override;
+		void processTrainingEntry(const SingleVolumeTrainingEntry& entry) override;
+		void processClassifyingEntry(const SingleVolumeClassifyingEntry& entry) override;
+
 		// Training parameters optimization function
 		void optimize();
 
 		// Main function for threaded classification
-		void classifyThreaded();
-
-		// Flow control
-		
-		QMutex* mutex;
-		QWaitCondition* waitCondition;
-		bool readyToTrain;
-		int subthreadCount;
+		void classifyThreaded(const SingleVolumeClassifyingEntry& entry);
 
 		// Training
 
-		QVector<SingleVolumeTrainingEntry> trainingEntriesQueue;
 		std::vector<shark::RealVector> samples;
 		std::vector<unsigned int> labels;
 		QVector<int> selectedLabels;
@@ -131,9 +101,12 @@ namespace ClassifierSharkSvmCNamespace
 
 		bool classifyCrop;
 		int classifyBottomSlice, classifyTopSlice;
-		QVector<SingleVolumeClassifyingEntry> classifyingEntriesQueue;
 		vtkSmartPointer<vtkMRMLNode> currentlyClassified;
 		QVector<int> slicesToClassify;
+
+		int subthreadCount;
+		QMutex* classifyMutex;
+		QMutex* optimizeMutex;
 	};
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////
