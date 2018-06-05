@@ -371,8 +371,7 @@ vtkSmartPointer<vtkMRMLNode> VolumeManager::loadAndGetLoadedVolume(const QString
 		loadedVolume->SetName(loadedNodeName.c_str());
 	}
 	else {
-		std::string str = filename.toLocal8Bit();
-		const char* c = str.c_str();
+		const char* c = filename.toLatin1().data();
 		loadedVolume = vtkMRMLScalarVolumeNode::
 				SafeDownCast(qSlicerCoreApplication::
 					application()->mrmlScene()->GetFirstNodeByName(c));
