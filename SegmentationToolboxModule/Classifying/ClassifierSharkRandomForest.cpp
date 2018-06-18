@@ -252,6 +252,8 @@ ClassifierSharkRandomForestWorker::ClassifierSharkRandomForestWorker()
 	: SupervisedClassifierWorker(),
 	autoOptimize(false), decisionFunction(funct_type(&normalizer, &classifier))
 {
+	classifyMutex = new QMutex;
+	optimizeMutex = new QMutex;
 	subthreadCount = qMax<int>(QThread::idealThreadCount() - 1, 4);
 }
 

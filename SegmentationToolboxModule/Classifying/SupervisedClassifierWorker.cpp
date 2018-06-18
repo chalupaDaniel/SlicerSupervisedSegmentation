@@ -13,6 +13,7 @@ SupervisedClassifierWorker::~SupervisedClassifierWorker()
 {
 	requestInterruption();
 	waitCondition->wakeAll();
+	wait();
 
 	delete mutex;
 	delete waitCondition;
@@ -66,7 +67,7 @@ void SupervisedClassifierWorker::run()
 
 			emit classifierTrained();
 
-			QMutexLocker lock(mutex);
+			lock.relock();
 			readyToTrain = false;
 			waitCondition->wait(mutex);
 			lock.unlock();
@@ -85,7 +86,7 @@ void SupervisedClassifierWorker::run()
 
 			processClassifyingEntry(entry);
 		} else {
-			QMutexLocker lock(mutex);
+			lock.relock();
 			waitCondition->wait(mutex);
 			lock.unlock();
 		}
