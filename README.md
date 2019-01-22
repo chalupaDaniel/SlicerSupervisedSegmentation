@@ -1,6 +1,8 @@
 # Supervised segmentation toolbox using machine learning for 3D Slicer
 This 3D Slicer extension enables the user to quickly train a supervised classifier and use it to classify images.
 
+If you use this extension, please reference https://doi.org/10.3390/sym10110627
+
 ## Included classifiers:
  - C Support Vector Machine from shark[1] and dlib[2]
  - Nu Support Vector Machine from dlib[2]
