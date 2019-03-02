@@ -53,7 +53,7 @@ SelectorSingleLine::SelectorSingleLine(int id, QWidget* parent)
 
 	connect(preview, SIGNAL(clicked()), this, SLOT(previewClicked()));
 
-	for (size_t i = 0; i < algorithms.algorithms.count(); i++) {
+	for (int i = 0; i < algorithms.algorithms.count(); i++) {
 		preprocessing->addItem(algorithms.algorithms.at(i)->name(), i);
 	}
 
