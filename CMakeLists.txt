@@ -14,16 +14,53 @@ set(EXTENSION_DEPENDS "NA") # Specified as a space separated string, a list or '
 set(EXTENSION_STATUS "Work in progress")
 
 #-----------------------------------------------------------------------------
-# Extension dependencies
-set(DLIB_INCLUDE "" CACHE PATH "Path to dlib")
-find_package(Slicer REQUIRED)
-include(${Slicer_USE_FILE})
-include_directories(${DLIB_INCLUDE})
+# Download and build dependencies
+#add_custom_command(
+#    OUTPUT ${CMAKE_SOURCE_DIR}
+#    WORKING_DIR ${CMAKE_SOURCE_DIR}
+#    COMMAND ./downloadAndBuildDeps
+#)
 
-set(BOOST_LIB "" CACHE PATH "Path to boost libs")
-link_directories(${BOOST_LIB})
-find_package(Shark REQUIRED)
-include(${SHARK_USE_FILE})
+#-----------------------------------------------------------------------------
+# Extension dependencies
+
+#	DLIB
+find_path(DLIB_DIR NAMES README.md  PATHS dlib)
+if ((NOT DLIB_DIR) OR (NOT EXISTS ${DLIB_DIR}))
+	message("DLIB not found")
+	execute_process(COMMAND git clone --branch v19.3 https://github.com/davisking/dlib.git)
+	set(DLIB_DIR dlib CACHE PATH "Path to dlib")
+endif ()
+if ((NOT DLIB_DIR) OR (NOT EXISTS ${DLIB_DIR}))
+	message(FATAL_ERROR "dlib could not be cloned")
+endif ()
+message("DLIB found in ${DLIB_DIR}")
+
+#	SHARK
+find_path(SHARK_DIR NAMES CMakeLists.txt PATHS Shark)
+if ((NOT SHARK_DIR) OR (NOT EXISTS ${SHARK_DIR}))
+        message("Shark not found")
+        execute_process(COMMAND git clone --branch v3.1.4 https://github.com/Shark-ML/Shark.git)
+        set(SHARK_DIR Shark CACHE PATH "Path to shark")
+endif ()
+if ((NOT SHARK_DIR) OR (NOT EXISTS ${SHARK_DIR}))
+        message(FATAL_ERROR "shark could not be cloned")
+endif ()
+message("Shark found in ${SHARK_DIR}")
+
+#	SLICER
+
+find_package(Slicer REQUIRED)
+include(${Slicer_USE_FILE}) 
+include_directories(${DLIB_DIR})
+
+set(ENABLE_OPENMP FALSE)
+ExternalProject_Add(Shark
+   SOURCE_DIR ${SHARK_DIR}
+   BUILD_IN_SOURCE 1
+   INSTALL "")
+#ExternalProject_Get_Property(Shark SHARK_USE_FILE)
+#include(${SHARK_USE_FILE})
 
 #-----------------------------------------------------------------------------
 # Extension modules
@@ -31,5 +68,5 @@ add_subdirectory(SegmentationToolboxModule)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------
-include(${Slicer_EXTENSION_GENERATE_CONFIG})
+include(${Slicer_EXTENSION_GENERATE_CONFIG}) 
 include(${Slicer_EXTENSION_CPACK})
