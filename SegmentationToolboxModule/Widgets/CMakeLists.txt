@@ -95,9 +95,25 @@ set(${KIT}_UI_SRCS
 set(${KIT}_RESOURCES
   )
 
+# 	BOOST
+find_package( 
+        Boost REQUIRED COMPONENTS
+        system date_time filesystem
+        program_options serialization thread
+        unit_test_framework
+)
+include_directories(SYSTEM ${Boost_INCLUDE_DIR} )
+link_directories( ${Boost_LIBRARY_DIR} )
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+  set(SHARK_DEBUG_SUFFIX _debug)
+else ()
+  set(SHARK_DEBUG_SUFFIX "")
+endif ()
+
 set(${KIT}_TARGET_LIBRARIES
   vtkSlicer${MODULE_NAME}ModuleLogic
-  ${SHARK_LIBRARIES}
+  ${CMAKE_STATIC_LIBRARY_PREFIX}shark${SHARK_DEBUG_SUFFIX}${CMAKE_STATIC_LIBRARY_SUFFIX} 
+  ${Boost_LIBRARIES}
   )
 #-----------------------------------------------------------------------------
 SlicerMacroBuildModuleWidgets(

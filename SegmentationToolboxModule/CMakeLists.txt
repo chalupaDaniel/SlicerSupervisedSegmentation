@@ -22,7 +22,6 @@ set(MODULE_INCLUDE_DIRECTORIES
   )
 
 set(MODULE_SRCS
-  #${DLIB_INCLUDE}/dlib/all/source.cpp
   qSlicer${MODULE_NAME}Module.cxx
   qSlicer${MODULE_NAME}Module.h
   qSlicer${MODULE_NAME}ModuleWidget.cxx

@@ -13,13 +13,8 @@ set(EXTENSION_SCREENSHOTURLS "")
 set(EXTENSION_DEPENDS "NA") # Specified as a space separated string, a list or 'NA' if any
 set(EXTENSION_STATUS "Work in progress")
 
-#-----------------------------------------------------------------------------
-# Download and build dependencies
-#add_custom_command(
-#    OUTPUT ${CMAKE_SOURCE_DIR}
-#    WORKING_DIR ${CMAKE_SOURCE_DIR}
-#    COMMAND ./downloadAndBuildDeps
-#)
+
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 #-----------------------------------------------------------------------------
 # Extension dependencies
@@ -35,32 +30,25 @@ if ((NOT DLIB_DIR) OR (NOT EXISTS ${DLIB_DIR}))
 	message(FATAL_ERROR "dlib could not be cloned")
 endif ()
 message("DLIB found in ${DLIB_DIR}")
-
+include_directories(${DLIB_DIR})
 #	SHARK
-find_path(SHARK_DIR NAMES CMakeLists.txt PATHS Shark)
-if ((NOT SHARK_DIR) OR (NOT EXISTS ${SHARK_DIR}))
-        message("Shark not found")
-        execute_process(COMMAND git clone --branch v3.1.4 https://github.com/Shark-ML/Shark.git)
-        set(SHARK_DIR Shark CACHE PATH "Path to shark")
-endif ()
-if ((NOT SHARK_DIR) OR (NOT EXISTS ${SHARK_DIR}))
-        message(FATAL_ERROR "shark could not be cloned")
-endif ()
-message("Shark found in ${SHARK_DIR}")
+include(${CMAKE_ROOT}/Modules/ExternalProject.cmake)
+
+ExternalProject_Add(shark
+   GIT_REPOSITORY https://github.com/Shark-ML/Shark.git
+   GIT_TAG v3.1.4
+   CMAKE_CACHE_ARGS -DBUILD_TESTING:BOOL=false -DBUILD_EXAMPLES:BOOL=false -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE} -DENABLE_OPENMP:BOOL=false -DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=true
+   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Shark
+   BUILD_IN_SOURCE 1
+   UPDATE_COMMAND ""
+   INSTALL_COMMAND "")
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/Shark/include)
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/Shark/lib)
 
 #	SLICER
 
 find_package(Slicer REQUIRED)
-include(${Slicer_USE_FILE}) 
-include_directories(${DLIB_DIR})
-
-set(ENABLE_OPENMP FALSE)
-ExternalProject_Add(Shark
-   SOURCE_DIR ${SHARK_DIR}
-   BUILD_IN_SOURCE 1
-   INSTALL "")
-#ExternalProject_Get_Property(Shark SHARK_USE_FILE)
-#include(${SHARK_USE_FILE})
+include(${Slicer_USE_FILE})
 
 #-----------------------------------------------------------------------------
 # Extension modules
@@ -70,3 +58,5 @@ add_subdirectory(SegmentationToolboxModule)
 #-----------------------------------------------------------------------------
 include(${Slicer_EXTENSION_GENERATE_CONFIG}) 
 include(${Slicer_EXTENSION_CPACK})
+
+
