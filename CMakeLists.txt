@@ -18,21 +18,18 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 #-----------------------------------------------------------------------------
 # Extension dependencies
+include(${CMAKE_ROOT}/Modules/ExternalProject.cmake)
 
 #	DLIB
-find_path(DLIB_DIR NAMES README.md  PATHS dlib)
-if ((NOT DLIB_DIR) OR (NOT EXISTS ${DLIB_DIR}))
-	message("DLIB not found")
-	execute_process(COMMAND git clone --branch v19.3 https://github.com/davisking/dlib.git)
-	set(DLIB_DIR dlib CACHE PATH "Path to dlib")
-endif ()
-if ((NOT DLIB_DIR) OR (NOT EXISTS ${DLIB_DIR}))
-	message(FATAL_ERROR "dlib could not be cloned")
-endif ()
-message("DLIB found in ${DLIB_DIR}")
-include_directories(${DLIB_DIR})
+ExternalProject_Add(dlib
+   GIT_REPOSITORY https://github.com/davisking/dlib.git
+   GIT_TAG v19.3
+   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/dlib
+   BUILD_COMMAND ""
+   UPDATE_COMMAND ""
+   INSTALL_COMMAND "")
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/dlib)
 #	SHARK
-include(${CMAKE_ROOT}/Modules/ExternalProject.cmake)
 
 ExternalProject_Add(shark
    GIT_REPOSITORY https://github.com/Shark-ML/Shark.git
