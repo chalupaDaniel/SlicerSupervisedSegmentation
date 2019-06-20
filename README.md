@@ -1,5 +1,5 @@
 # Supervised segmentation toolbox using machine learning for 3D Slicer
-This 3D Slicer extension enables the user to quickly train a supervised classifier and use it to classify images.
+This 3D Slicer extension enables the user to quickly train a supervised classifier and use it to classify images. See the [Wiki page]( https://github.com/chalupaDaniel/SlicerSupervisedSegmentation/wiki/Supervised-Segmentation-Toolbox-for-3D-Slicer) for more info.
 
 If you use this extension, please reference https://doi.org/10.3390/sym10110627
 
@@ -12,10 +12,7 @@ If you use this extension, please reference https://doi.org/10.3390/sym10110627
  - Gaussian filter from VTK[3]
  - Median filter from VTK[3]
  - Sobel operator from VTK[3]
-  
-## 3D Slicer users:
-If you want to use this extension in 3D Slicer, check the releases to see supported 3D Slicer versions and operating systems combinations. After downloading the selected libraries, go to Extension manager in 3D Slicer and add the module's .zip.
-  
+
 ## References:
 \[1\] IGEL, CH., HEIDRICH-MEISNER, V., GLASSMACHERS, T., [Shark](http://image.diku.dk/shark/index.html), 2008, Journal of Machine Learning Research, 993-996, 9
 
