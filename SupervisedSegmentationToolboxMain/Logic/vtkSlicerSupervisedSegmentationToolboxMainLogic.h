@@ -15,14 +15,14 @@
 
 ==============================================================================*/
 
-// .NAME vtkSlicerSegmentationToolboxModuleLogic - slicer logic class for volumes manipulation
+// .NAME vtkSlicerSupervisedSegmentationToolboxMainLogic - slicer logic class for volumes manipulation
 // .SECTION Description
 // This class manages the logic associated with reading, saving,
 // and changing propertied of the volumes
 
 
-#ifndef __vtkSlicerSegmentationToolboxModuleLogic_h
-#define __vtkSlicerSegmentationToolboxModuleLogic_h
+#ifndef __vtkSlicerSupervisedSegmentationToolboxMainLogic_h
+#define __vtkSlicerSupervisedSegmentationToolboxMainLogic_h
 
 // Slicer includes
 #include "vtkSlicerModuleLogic.h"
@@ -32,22 +32,22 @@
 // STD includes
 #include <cstdlib>
 
-#include "vtkSlicerSegmentationToolboxModuleModuleLogicExport.h"
+#include "vtkSlicerSupervisedSegmentationToolboxMainModuleLogicExport.h"
 
 
 /// \ingroup Slicer_QtModules_ExtensionTemplate
-class VTK_SLICER_SEGMENTATIONTOOLBOXMODULE_MODULE_LOGIC_EXPORT vtkSlicerSegmentationToolboxModuleLogic :
+class VTK_SLICER_SUPERVISEDSEGMENTATIONTOOLBOXMAIN_MODULE_LOGIC_EXPORT vtkSlicerSupervisedSegmentationToolboxMainLogic :
   public vtkSlicerModuleLogic
 {
 public:
 
-  static vtkSlicerSegmentationToolboxModuleLogic *New();
-  vtkTypeMacro(vtkSlicerSegmentationToolboxModuleLogic, vtkSlicerModuleLogic);
+  static vtkSlicerSupervisedSegmentationToolboxMainLogic *New();
+  vtkTypeMacro(vtkSlicerSupervisedSegmentationToolboxMainLogic, vtkSlicerModuleLogic);
   void PrintSelf(ostream& os, vtkIndent indent);
 
 protected:
-  vtkSlicerSegmentationToolboxModuleLogic();
-  virtual ~vtkSlicerSegmentationToolboxModuleLogic();
+  vtkSlicerSupervisedSegmentationToolboxMainLogic();
+  virtual ~vtkSlicerSupervisedSegmentationToolboxMainLogic();
 
   virtual void SetMRMLSceneInternal(vtkMRMLScene* newScene);
   /// Register MRML Node classes to Scene. Gets called automatically when the MRMLScene is attached to this logic class.
@@ -57,8 +57,8 @@ protected:
   virtual void OnMRMLSceneNodeRemoved(vtkMRMLNode* node);
 private:
 
-  vtkSlicerSegmentationToolboxModuleLogic(const vtkSlicerSegmentationToolboxModuleLogic&); // Not implemented
-  void operator=(const vtkSlicerSegmentationToolboxModuleLogic&); // Not implemented
+  vtkSlicerSupervisedSegmentationToolboxMainLogic(const vtkSlicerSupervisedSegmentationToolboxMainLogic&); // Not implemented
+  void operator=(const vtkSlicerSupervisedSegmentationToolboxMainLogic&); // Not implemented
 };
 
 #endif

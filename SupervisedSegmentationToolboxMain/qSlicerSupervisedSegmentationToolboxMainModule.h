@@ -15,19 +15,19 @@
 
 ==============================================================================*/
 
-#ifndef __qSlicerSegmentationToolboxModuleModule_h
-#define __qSlicerSegmentationToolboxModuleModule_h
+#ifndef __qSlicerSupervisedSegmentationToolboxMainModule_h
+#define __qSlicerSupervisedSegmentationToolboxMainModule_h
 
 // SlicerQt includes
 #include "qSlicerLoadableModule.h"
 
-#include "qSlicerSegmentationToolboxModuleModuleExport.h"
+#include "qSlicerSupervisedSegmentationToolboxMainModuleExport.h"
 
-class qSlicerSegmentationToolboxModuleModulePrivate;
+class qSlicerSupervisedSegmentationToolboxMainModulePrivate;
 
 /// \ingroup Slicer_QtModules_ExtensionTemplate
-class Q_SLICER_QTMODULES_SEGMENTATIONTOOLBOXMODULE_EXPORT
-qSlicerSegmentationToolboxModuleModule
+class Q_SLICER_QTMODULES_SUPERVISEDSEGMENTATIONTOOLBOXMAIN_EXPORT
+qSlicerSupervisedSegmentationToolboxMainModule
   : public qSlicerLoadableModule
 {
 	Q_OBJECT
@@ -39,8 +39,8 @@ qSlicerSegmentationToolboxModuleModule
 public:
 
   typedef qSlicerLoadableModule Superclass;
-  explicit qSlicerSegmentationToolboxModuleModule(QObject *parent=0);
-  virtual ~qSlicerSegmentationToolboxModuleModule();
+  explicit qSlicerSupervisedSegmentationToolboxMainModule(QObject *parent=0);
+  virtual ~qSlicerSupervisedSegmentationToolboxMainModule();
 
   qSlicerGetTitleMacro(QTMODULE_TITLE);
 
@@ -65,11 +65,11 @@ protected:
   virtual vtkMRMLAbstractLogic* createLogic();
 
 protected:
-  QScopedPointer<qSlicerSegmentationToolboxModuleModulePrivate> d_ptr;
+  QScopedPointer<qSlicerSupervisedSegmentationToolboxMainModulePrivate> d_ptr;
 
 private:
-  Q_DECLARE_PRIVATE(qSlicerSegmentationToolboxModuleModule);
-  Q_DISABLE_COPY(qSlicerSegmentationToolboxModuleModule);
+  Q_DECLARE_PRIVATE(qSlicerSupervisedSegmentationToolboxMainModule);
+  Q_DISABLE_COPY(qSlicerSupervisedSegmentationToolboxMainModule);
 
 };
 

@@ -16,63 +16,63 @@
 ==============================================================================*/
 
 // SegmentationToolboxModule Logic includes
-#include <vtkSlicerSegmentationToolboxModuleLogic.h>
+#include <vtkSlicerSupervisedSegmentationToolboxMainLogic.h>
 
 // SegmentationToolboxModule includes
-#include "qSlicerSegmentationToolboxModuleModule.h"
-#include "qSlicerSegmentationToolboxModuleModuleWidget.h"
+#include "qSlicerSupervisedSegmentationToolboxMainModule.h"
+#include "qSlicerSupervisedSegmentationToolboxMainModuleWidget.h"
 
 //-----------------------------------------------------------------------------
 #if (QT_VERSION < QT_VERSION_CHECK(5, 0, 0))
 #include <QtPlugin>
-Q_EXPORT_PLUGIN2(qSlicerSegmentationToolboxModuleModule, qSlicerSegmentationToolboxModuleModule);
+Q_EXPORT_PLUGIN2(qSlicerSupervisedSegmentationToolboxMainModule, qSlicerSupervisedSegmentationToolboxMainModule);
 #endif
 
 //-----------------------------------------------------------------------------
 /// \ingroup Slicer_QtModules_ExtensionTemplate
-class qSlicerSegmentationToolboxModuleModulePrivate
+class qSlicerSupervisedSegmentationToolboxMainModulePrivate
 {
 public:
-  qSlicerSegmentationToolboxModuleModulePrivate();
+  qSlicerSupervisedSegmentationToolboxMainModulePrivate();
 };
 
 //-----------------------------------------------------------------------------
-// qSlicerSegmentationToolboxModuleModulePrivate methods
+// qSlicerSupervisedSegmentationToolboxMainModulePrivate methods
 
 //-----------------------------------------------------------------------------
-qSlicerSegmentationToolboxModuleModulePrivate::qSlicerSegmentationToolboxModuleModulePrivate()
+qSlicerSupervisedSegmentationToolboxMainModulePrivate::qSlicerSupervisedSegmentationToolboxMainModulePrivate()
 {
 }
 
 //-----------------------------------------------------------------------------
-// qSlicerSegmentationToolboxModuleModule methods
+// qSlicerSupervisedSegmentationToolboxMainModule methods
 
 //-----------------------------------------------------------------------------
-qSlicerSegmentationToolboxModuleModule::qSlicerSegmentationToolboxModuleModule(QObject* _parent)
+qSlicerSupervisedSegmentationToolboxMainModule::qSlicerSupervisedSegmentationToolboxMainModule(QObject* _parent)
   : Superclass(_parent)
-  , d_ptr(new qSlicerSegmentationToolboxModuleModulePrivate)
+  , d_ptr(new qSlicerSupervisedSegmentationToolboxMainModulePrivate)
 {
 }
 
 //-----------------------------------------------------------------------------
-qSlicerSegmentationToolboxModuleModule::~qSlicerSegmentationToolboxModuleModule()
+qSlicerSupervisedSegmentationToolboxMainModule::~qSlicerSupervisedSegmentationToolboxMainModule()
 {
 }
 
 //-----------------------------------------------------------------------------
-QString qSlicerSegmentationToolboxModuleModule::helpText() const
+QString qSlicerSupervisedSegmentationToolboxMainModule::helpText() const
 {
   return "This module allows using machine learning to segment preprocessed images using one of the included algorithms.";
 }
 
 //-----------------------------------------------------------------------------
-QString qSlicerSegmentationToolboxModuleModule::acknowledgementText() const
+QString qSlicerSupervisedSegmentationToolboxMainModule::acknowledgementText() const
 {
   return "";
 }
 
 //-----------------------------------------------------------------------------
-QStringList qSlicerSegmentationToolboxModuleModule::contributors() const
+QStringList qSlicerSupervisedSegmentationToolboxMainModule::contributors() const
 {
   QStringList moduleContributors;
   moduleContributors << QString("Daniel Chalupa");
@@ -80,38 +80,38 @@ QStringList qSlicerSegmentationToolboxModuleModule::contributors() const
 }
 
 //-----------------------------------------------------------------------------
-QIcon qSlicerSegmentationToolboxModuleModule::icon() const
+QIcon qSlicerSupervisedSegmentationToolboxMainModule::icon() const
 {
   return QIcon(":/Icons/SegmentationToolboxModule.png");
 }
 
 //-----------------------------------------------------------------------------
-QStringList qSlicerSegmentationToolboxModuleModule::categories() const
+QStringList qSlicerSupervisedSegmentationToolboxMainModule::categories() const
 {
   return QStringList() << "Segmentation";
 }
 
 //-----------------------------------------------------------------------------
-QStringList qSlicerSegmentationToolboxModuleModule::dependencies() const
+QStringList qSlicerSupervisedSegmentationToolboxMainModule::dependencies() const
 {
   return QStringList();
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSegmentationToolboxModuleModule::setup()
+void qSlicerSupervisedSegmentationToolboxMainModule::setup()
 {
   this->Superclass::setup();
 }
 
 //-----------------------------------------------------------------------------
-qSlicerAbstractModuleRepresentation* qSlicerSegmentationToolboxModuleModule
+qSlicerAbstractModuleRepresentation* qSlicerSupervisedSegmentationToolboxMainModule
 ::createWidgetRepresentation()
 {
-  return new qSlicerSegmentationToolboxModuleModuleWidget;
+  return new qSlicerSupervisedSegmentationToolboxMainModuleWidget;
 }
 
 //-----------------------------------------------------------------------------
-vtkMRMLAbstractLogic* qSlicerSegmentationToolboxModuleModule::createLogic()
+vtkMRMLAbstractLogic* qSlicerSupervisedSegmentationToolboxMainModule::createLogic()
 {
-  return vtkSlicerSegmentationToolboxModuleLogic::New();
+  return vtkSlicerSupervisedSegmentationToolboxMainLogic::New();
 }

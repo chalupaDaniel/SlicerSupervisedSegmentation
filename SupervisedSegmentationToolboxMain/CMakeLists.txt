@@ -1,6 +1,6 @@
 
 #-----------------------------------------------------------------------------
-set(MODULE_NAME SegmentationToolboxModule)
+set(MODULE_NAME SupervisedSegmentationToolboxMain)
 set(MODULE_TITLE "Supervised Segmentation Toolbox")
 
 string(TOUPPER ${MODULE_NAME} MODULE_NAME_UPPER)

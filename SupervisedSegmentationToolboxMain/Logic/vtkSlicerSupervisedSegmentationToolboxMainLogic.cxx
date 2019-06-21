@@ -16,7 +16,7 @@
 ==============================================================================*/
 
 // SegmentationToolboxModule Logic includes
-#include "vtkSlicerSegmentationToolboxModuleLogic.h"
+#include "vtkSlicerSupervisedSegmentationToolboxMainLogic.h"
 
 // MRML includes
 #include <vtkMRMLScene.h>
@@ -30,26 +30,26 @@
 #include <cassert>
 
 //----------------------------------------------------------------------------
-vtkStandardNewMacro(vtkSlicerSegmentationToolboxModuleLogic);
+vtkStandardNewMacro(vtkSlicerSupervisedSegmentationToolboxMainLogic);
 
 //----------------------------------------------------------------------------
-vtkSlicerSegmentationToolboxModuleLogic::vtkSlicerSegmentationToolboxModuleLogic()
+vtkSlicerSupervisedSegmentationToolboxMainLogic::vtkSlicerSupervisedSegmentationToolboxMainLogic()
 {
 }
 
 //----------------------------------------------------------------------------
-vtkSlicerSegmentationToolboxModuleLogic::~vtkSlicerSegmentationToolboxModuleLogic()
+vtkSlicerSupervisedSegmentationToolboxMainLogic::~vtkSlicerSupervisedSegmentationToolboxMainLogic()
 {
 }
 
 //----------------------------------------------------------------------------
-void vtkSlicerSegmentationToolboxModuleLogic::PrintSelf(ostream& os, vtkIndent indent)
+void vtkSlicerSupervisedSegmentationToolboxMainLogic::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
 
 //---------------------------------------------------------------------------
-void vtkSlicerSegmentationToolboxModuleLogic::SetMRMLSceneInternal(vtkMRMLScene * newScene)
+void vtkSlicerSupervisedSegmentationToolboxMainLogic::SetMRMLSceneInternal(vtkMRMLScene * newScene)
 {
   vtkNew<vtkIntArray> events;
   events->InsertNextValue(vtkMRMLScene::NodeAddedEvent);
@@ -59,25 +59,25 @@ void vtkSlicerSegmentationToolboxModuleLogic::SetMRMLSceneInternal(vtkMRMLScene 
 }
 
 //-----------------------------------------------------------------------------
-void vtkSlicerSegmentationToolboxModuleLogic::RegisterNodes()
+void vtkSlicerSupervisedSegmentationToolboxMainLogic::RegisterNodes()
 {
   assert(this->GetMRMLScene() != 0);
 }
 
 //---------------------------------------------------------------------------
-void vtkSlicerSegmentationToolboxModuleLogic::UpdateFromMRMLScene()
+void vtkSlicerSupervisedSegmentationToolboxMainLogic::UpdateFromMRMLScene()
 {
   assert(this->GetMRMLScene() != 0);
 }
 
 //---------------------------------------------------------------------------
-void vtkSlicerSegmentationToolboxModuleLogic
+void vtkSlicerSupervisedSegmentationToolboxMainLogic
 ::OnMRMLSceneNodeAdded(vtkMRMLNode* vtkNotUsed(node))
 {
 }
 
 //---------------------------------------------------------------------------
-void vtkSlicerSegmentationToolboxModuleLogic
+void vtkSlicerSupervisedSegmentationToolboxMainLogic
 ::OnMRMLSceneNodeRemoved(vtkMRMLNode* vtkNotUsed(node))
 {
 }

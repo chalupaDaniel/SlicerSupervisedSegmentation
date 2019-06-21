@@ -15,19 +15,19 @@
 
 ==============================================================================*/
 
-#ifndef __qSlicerSegmentationToolboxModuleModuleWidget_h
-#define __qSlicerSegmentationToolboxModuleModuleWidget_h
+#ifndef __qSlicerSupervisedSegmentationToolboxMainModuleWidget_h
+#define __qSlicerSupervisedSegmentationToolboxMainModuleWidget_h
 
 // SlicerQt includes
 #include "qSlicerAbstractModuleWidget.h"
 
-#include "qSlicerSegmentationToolboxModuleModuleExport.h"
+#include "qSlicerSupervisedSegmentationToolboxMainModuleExport.h"
 
-class qSlicerSegmentationToolboxModuleModuleWidgetPrivate;
+class qSlicerSupervisedSegmentationToolboxMainModuleWidgetPrivate;
 class vtkMRMLNode;
 
 /// \ingroup Slicer_QtModules_ExtensionTemplate
-class Q_SLICER_QTMODULES_SEGMENTATIONTOOLBOXMODULE_EXPORT qSlicerSegmentationToolboxModuleModuleWidget :
+class Q_SLICER_QTMODULES_SUPERVISEDSEGMENTATIONTOOLBOXMAIN_EXPORT qSlicerSupervisedSegmentationToolboxMainModuleWidget :
   public qSlicerAbstractModuleWidget
 {
   Q_OBJECT
@@ -35,19 +35,19 @@ class Q_SLICER_QTMODULES_SEGMENTATIONTOOLBOXMODULE_EXPORT qSlicerSegmentationToo
 public:
 
   typedef qSlicerAbstractModuleWidget Superclass;
-  qSlicerSegmentationToolboxModuleModuleWidget(QWidget *parent=0);
-  virtual ~qSlicerSegmentationToolboxModuleModuleWidget();
+  qSlicerSupervisedSegmentationToolboxMainModuleWidget(QWidget *parent=0);
+  virtual ~qSlicerSupervisedSegmentationToolboxMainModuleWidget();
 
 public slots:
 
 protected:
-  QScopedPointer<qSlicerSegmentationToolboxModuleModuleWidgetPrivate> d_ptr;
+  QScopedPointer<qSlicerSupervisedSegmentationToolboxMainModuleWidgetPrivate> d_ptr;
 
   virtual void setup();
 
 private:
-  Q_DECLARE_PRIVATE(qSlicerSegmentationToolboxModuleModuleWidget);
-  Q_DISABLE_COPY(qSlicerSegmentationToolboxModuleModuleWidget);
+  Q_DECLARE_PRIVATE(qSlicerSupervisedSegmentationToolboxMainModuleWidget);
+  Q_DISABLE_COPY(qSlicerSupervisedSegmentationToolboxMainModuleWidget);
 };
 
 #endif

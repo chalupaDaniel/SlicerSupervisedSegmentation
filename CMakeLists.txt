@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 
-project(SegmentationToolbox)
+project(SupervisedSegmentationToolbox)
 
 #-----------------------------------------------------------------------------
 # Extension meta-information
@@ -8,7 +8,7 @@ set(EXTENSION_HOMEPAGE "https://github.com/chalupaDaniel/slicerSupervisedSegment
 set(EXTENSION_CATEGORY "Segmentation")
 set(EXTENSION_CONTRIBUTORS "Daniel Chalupa")
 set(EXTENSION_DESCRIPTION "This module allows using machine learning to segment preprocessed images using one of the included algorithms.")
-set(EXTENSION_ICONURL "https://github.com/chalupaDaniel/slicerSupervisedSegmentation/blob/master/SegmentationToolbox.png")
+set(EXTENSION_ICONURL "https://github.com/chalupaDaniel/SlicerSupervisedSegmentation/blob/master/SupervisedSegmentationToolbox.png")
 set(EXTENSION_SCREENSHOTURLS "")
 set(EXTENSION_DEPENDS "NA") # Specified as a space separated string, a list or 'NA' if any
 set(EXTENSION_STATUS "Work in progress")
@@ -49,7 +49,7 @@ include(${Slicer_USE_FILE})
 
 #-----------------------------------------------------------------------------
 # Extension modules
-add_subdirectory(SegmentationToolboxModule)
+add_subdirectory(SupervisedSegmentationToolboxMain)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------

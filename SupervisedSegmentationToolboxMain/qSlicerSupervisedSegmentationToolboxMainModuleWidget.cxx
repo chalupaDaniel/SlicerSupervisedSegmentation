@@ -19,44 +19,44 @@
 #include <QDebug>
 
 // SlicerQt includes
-#include "qSlicerSegmentationToolboxModuleModuleWidget.h"
-#include "ui_qSlicerSegmentationToolboxModuleModuleWidget.h"
+#include "qSlicerSupervisedSegmentationToolboxMainModuleWidget.h"
+#include "ui_qSlicerSupervisedSegmentationToolboxMainModuleWidget.h"
 
 //-----------------------------------------------------------------------------
 /// \ingroup Slicer_QtModules_ExtensionTemplate
-class qSlicerSegmentationToolboxModuleModuleWidgetPrivate: public Ui_qSlicerSegmentationToolboxModuleModuleWidget
+class qSlicerSupervisedSegmentationToolboxMainModuleWidgetPrivate: public Ui_qSlicerSupervisedSegmentationToolboxMainModuleWidget
 {
 public:
-  qSlicerSegmentationToolboxModuleModuleWidgetPrivate();
+  qSlicerSupervisedSegmentationToolboxMainModuleWidgetPrivate();
 };
 
 //-----------------------------------------------------------------------------
-// qSlicerSegmentationToolboxModuleModuleWidgetPrivate methods
+// qSlicerSupervisedSegmentationToolboxMainModuleWidgetPrivate methods
 
 //-----------------------------------------------------------------------------
-qSlicerSegmentationToolboxModuleModuleWidgetPrivate::qSlicerSegmentationToolboxModuleModuleWidgetPrivate()
+qSlicerSupervisedSegmentationToolboxMainModuleWidgetPrivate::qSlicerSupervisedSegmentationToolboxMainModuleWidgetPrivate()
 {
 }
 
 //-----------------------------------------------------------------------------
-// qSlicerSegmentationToolboxModuleModuleWidget methods
+// qSlicerSupervisedSegmentationToolboxMainModuleWidget methods
 
 //-----------------------------------------------------------------------------
-qSlicerSegmentationToolboxModuleModuleWidget::qSlicerSegmentationToolboxModuleModuleWidget(QWidget* _parent)
+qSlicerSupervisedSegmentationToolboxMainModuleWidget::qSlicerSupervisedSegmentationToolboxMainModuleWidget(QWidget* _parent)
   : Superclass( _parent )
-  , d_ptr( new qSlicerSegmentationToolboxModuleModuleWidgetPrivate )
+  , d_ptr( new qSlicerSupervisedSegmentationToolboxMainModuleWidgetPrivate )
 {
 }
 
 //-----------------------------------------------------------------------------
-qSlicerSegmentationToolboxModuleModuleWidget::~qSlicerSegmentationToolboxModuleModuleWidget()
+qSlicerSupervisedSegmentationToolboxMainModuleWidget::~qSlicerSupervisedSegmentationToolboxMainModuleWidget()
 {
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSegmentationToolboxModuleModuleWidget::setup()
+void qSlicerSupervisedSegmentationToolboxMainModuleWidget::setup()
 {
-  Q_D(qSlicerSegmentationToolboxModuleModuleWidget);
+  Q_D(qSlicerSupervisedSegmentationToolboxMainModuleWidget);
   d->setupUi(this);
   this->Superclass::setup();
 }

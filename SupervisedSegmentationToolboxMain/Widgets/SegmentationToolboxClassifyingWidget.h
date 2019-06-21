@@ -8,7 +8,7 @@
 
 #include "vtkSmartPointer.h"
 
-#include "qSlicerSegmentationToolboxModuleModuleWidgetsExport.h"
+#include "qSlicerSupervisedSegmentationToolboxMainModuleWidgetsExport.h"
 
 class SegmentationToolboxClassifyingWidgetPrivate;
 class SupervisedClassifier;
@@ -18,8 +18,8 @@ class ClassifierWidget;
 class ClassificationResultCombinator;
 class vtkMRMLNode;
 
-/// \ingroup Slicer_QtModules_SegmentationToolboxModule
-class Q_SLICER_MODULE_SEGMENTATIONTOOLBOXMODULE_WIDGETS_EXPORT SegmentationToolboxClassifyingWidget
+/// \ingroup Slicer_QtModules_SupervisedSegmentationToolboxMain
+class Q_SLICER_MODULE_SUPERVISEDSEGMENTATIONTOOLBOXMAIN_WIDGETS_EXPORT SegmentationToolboxClassifyingWidget
 	: public QWidget
 {
 	Q_OBJECT

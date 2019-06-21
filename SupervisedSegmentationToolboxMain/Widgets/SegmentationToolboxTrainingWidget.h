@@ -6,7 +6,7 @@
 #include <QStringList>
 #include <QSharedPointer>
 
-#include "qSlicerSegmentationToolboxModuleModuleWidgetsExport.h"
+#include "qSlicerSupervisedSegmentationToolboxMainModuleWidgetsExport.h"
 
 class SegmentationToolboxTrainingWidgetPrivate;
 class VolumeManager;
@@ -14,8 +14,8 @@ class ClassifierList;
 class SupervisedClassifier;
 class VolumeSelectorDialog;
 
-/// \ingroup Slicer_QtModules_SegmentationToolboxModule
-class Q_SLICER_MODULE_SEGMENTATIONTOOLBOXMODULE_WIDGETS_EXPORT SegmentationToolboxTrainingWidget
+/// \ingroup Slicer_QtModules_SupervisedSegmentationToolboxMain
+class Q_SLICER_MODULE_SUPERVISEDSEGMENTATIONTOOLBOXMAIN_WIDGETS_EXPORT SegmentationToolboxTrainingWidget
 	: public QWidget
 {
 	Q_OBJECT
