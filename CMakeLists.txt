@@ -15,24 +15,10 @@ set(EXTENSION_STATUS "Work in progress")
 
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-set(CMAKE_BUILD_TYPE Release)
-#set(CMAKE_BUILD_TYPE Debug)
-set(CMAKE_CONFIGURATION_TYPES ${CMAKE_BUILD_TYPE})
 
 #-----------------------------------------------------------------------------
 # Extension dependencies
 include(${CMAKE_ROOT}/Modules/ExternalProject.cmake)
-
-
-# 	BOOST
-add_definitions( -DBOOST_ALL_NO_LIB )
-set( Boost_USE_STATIC_LIBS ON )
-find_package( 
-        Boost REQUIRED COMPONENTS
-        system date_time filesystem
-        program_options serialization thread
-        unit_test_framework
-)
 
 #	DLIB
 ExternalProject_Add(dlib
@@ -55,8 +41,12 @@ ExternalProject_Add(shark
    INSTALL_COMMAND "")
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/Shark/include)
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/Shark/lib)
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/Shark/lib/Release)
-link_directories(${CMAKE_CURRENT_SOURCE_DIR}/Shark/lib/Debug)
+
+if ( MSVC )
+    set_target_properties( shark PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/Shark/lib )
+    set_target_properties( shark PROPERTIES LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_CURRENT_SOURCE_DIR}/Shark/lib )
+    set_target_properties( shark PROPERTIES LIBRARY_OUTPUT_DIRECTORY_RELEASE ${CMAKE_CURRENT_SOURCE_DIR}/Shark/lib )
+endif ( MSVC )
 
 #	SLICER
 

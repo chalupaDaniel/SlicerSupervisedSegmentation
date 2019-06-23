@@ -95,9 +95,19 @@ set(${KIT}_UI_SRCS
 set(${KIT}_RESOURCES
   )
 
-include_directories(SYSTEM ${Boost_INCLUDE_DIR} )
-link_directories( ${Boost_LIBRARY_DIR} )
+# 	BOOST
+if (MSVC)
+  add_definitions( -DBOOST_ALL_NO_LIB )
+  set( Boost_USE_STATIC_LIBS ON )
+endif()
+find_package( 
+        Boost REQUIRED COMPONENTS
+        system date_time filesystem
+        program_options serialization thread
+        unit_test_framework
+)
 
+include_directories(SYSTEM ${Boost_INCLUDE_DIR} )
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
   set(SHARK_DEBUG_SUFFIX _debug)
 else ()
@@ -123,3 +133,11 @@ SlicerMacroBuildModuleWidgets(
   )
   
 add_dependencies( ${KIT} shark dlib)
+
+
+# On unix we cant link to static boost (-fPIC needed)
+if (UNIX)
+add_custom_command(TARGET ${KIT} POST_BUILD
+                   COMMAND ${CMAKE_COMMAND} -E copy
+                       ${Boost_LIBRARIES} $<TARGET_FILE_DIR:${KIT}>)
+endif()
